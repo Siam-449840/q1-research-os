@@ -32,3 +32,16 @@ everything above `## Deviations`; any later change there fails every subsequent 
 
 Changes go only into `## Deviations` as `YYYY-MM-DD | what | why | impact`, and every deviation is
 reported in the manuscript's Methods.
+
+## v1.2 method requirements (enforced)
+
+`rosctl` scans the protocol and blocks when a method is named without its safeguard: ANOVA without the
+sum-of-squares type [E116] or assumption checks [E40]; post-hoc tests without error-rate control [E42,E43];
+mixed models without stated fixed and random effects [E117]; log transforms without back-transformation and
+zero handling [E118]; spatial/temporal/repeated data without a dependence strategy [E119]; block or factorial
+designs without the experimental unit [E24,E25] and an interaction plan [E45]; power analysis without the
+effect size and its source [E26]; Likert data without ordinal handling [E121]; human participants without
+ethics/consent [E124]; causal questions without identification [E23,E27]; ML without seeds, repeated runs,
+nested tuning, baselines and imbalance-aware metrics [E53-E57]; public benchmarks without a contamination
+statement [E109]; genomics without pinned genome/annotation versions [E114]; repository mining without
+bot/fork/duplicate filters [E123]. At `rosctl approve S2` the owner confirms H06-H09.

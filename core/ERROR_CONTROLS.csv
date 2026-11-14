@@ -1,0 +1,137 @@
+error_id,category,error,controls,enforcement,residual_risk
+1,Literature,Fully fabricated reference,C01;C07,fail-closed gate,low
+2,Literature,"Chimera citation (real DOI, other paper)",C02;C03,fail-closed gate,low
+3,Literature,"Wrong metadata (year, authors, volume, pages)",C03,fail-closed gate,medium
+4,Literature,Real citation that does not support the claim,C08;C07;H05;H10,fail-closed gate + human gate,high
+5,Literature,Overstating a paper's findings,C11;H11,fail-closed gate + human gate,high
+6,Literature,Retracted paper used as valid source,C04,fail-closed gate,medium
+7,Literature,Summarising a whole paper from its abstract,C08;H01;H05,fail-closed gate + human gate,medium
+8,Literature,Pretending to have read the PDF,C08,fail-closed gate,low
+9,Literature,Misreading PDF tables/figures,C39;H10,fail-closed gate + human gate,medium
+10,Literature,Fabricated quotations and page numbers,C08,fail-closed gate,low
+11,Literature,Secondary citation presented as primary,H05;H10,mandatory human gate,medium
+12,Literature,False consensus,C09,fail-closed gate,medium
+13,Literature,Outdated information presented as current,C16;H02,fail-closed gate + human gate,medium
+14,Literature,Preprint presented as peer-reviewed,C05,fail-closed gate,low
+15,Literature,One-sided literature (English/western/open access only),C18;H03,fail-closed gate + human gate,medium
+16,Literature,Broken DOIs and URLs,C01;C06,fail-closed gate,low
+17,Novelty,'No previous research' claims,C10;C17;C20;H02,fail-closed gate + human gate,medium
+18,Novelty,False research gap,C17;C20;H02,fail-closed gate + human gate,medium
+19,Novelty,Old method under a new name,C16;H02,fail-closed gate + human gate,high
+20,Novelty,Overstated importance and feasibility,C15;H04,fail-closed gate + human gate,medium
+21,Novelty,Sycophancy,C22;H04,fail-closed gate + human gate,high
+22,Design,Untestable or vague hypothesis,C21;C23,fail-closed gate,low
+23,Design,Design does not match the question,C24;H06,fail-closed gate + human gate,medium
+24,Design,Pseudoreplication,C24;H07,fail-closed gate + human gate,medium
+25,Design,Blocking and design-structure errors,C24;H07,fail-closed gate + human gate,medium
+26,Design,Fabricated or wrong sample size / power,C24;C39;H08,fail-closed gate + human gate,medium
+27,Design,Missing controls or confounders,C24;H06,fail-closed gate + human gate,medium
+28,Design,Fabricated protocol values,C39;H08,fail-closed gate + human gate,medium
+29,Design,Fabricated local facts,C39;H08,fail-closed gate + human gate,medium
+30,Design,Assuming equipment/software availability,H04,mandatory human gate,medium
+31,Dataset,Fabricating data,C31;C30;C25,fail-closed gate,low
+32,Dataset,Non-existent dataset,C25;C26,fail-closed gate,low
+33,Dataset,Misread units or codebook,C27,fail-closed gate,medium
+34,Dataset,Silent data cleaning,C58;H13,fail-closed gate + human gate,medium
+35,Dataset,Data leakage,C36;C24,fail-closed gate,medium
+36,Dataset,Assuming representativeness,H11,mandatory human gate,high
+37,Dataset,Ignoring license and privacy,C26;C28;H22,fail-closed gate + human gate,medium
+38,Statistics,Mental arithmetic instead of code,C39;C29,fail-closed gate,low
+39,Statistics,Text numbers differ from code output,C39,fail-closed gate,low
+40,Statistics,Unchecked test assumptions,C24;H09,fail-closed gate + human gate,medium
+41,Statistics,p-value misinterpretation,C11,fail-closed gate,medium
+42,Statistics,No multiple-comparison correction,C24;C23;H09,fail-closed gate + human gate,medium
+43,Statistics,Wrong post-hoc test,C24;H09,fail-closed gate + human gate,medium
+44,Statistics,SD/SE/CI confusion,C12;C45,fail-closed gate,medium
+45,Statistics,Ignoring interactions,C24;H09,fail-closed gate + human gate,medium
+46,Statistics,"Inconsistent df, statistic and p-value",C38,fail-closed gate,low
+47,Statistics,Training-set R2/accuracy reported as performance,C40;C36,fail-closed gate,medium
+48,Statistics,Correlation reported as causation,C24;H11,fail-closed gate + human gate,high
+49,ML,Fabricating results when code fails,C29;C30;C55,fail-closed gate,low
+50,ML,Claiming to have run code,C29;C30,fail-closed gate,low
+51,ML,Silent bugs in running code,C37;C29;C35,fail-closed gate,medium
+52,ML,Non-existent or deprecated APIs,C29;C55,fail-closed gate,low
+53,ML,Weak or unfair baselines,C24;C46,fail-closed gate,medium
+54,ML,Single-seed results,C24,fail-closed gate,medium
+55,ML,Wrong metric (accuracy on imbalanced data),C24,fail-closed gate,medium
+56,ML,Hyperparameter tuning on the test set,C24;C36,fail-closed gate,medium
+57,ML,"Not reproducible (no pins, seeds, environment)",C33;C25;C29,fail-closed gate,low
+58,Interpretation,Over-generalisation,H11,mandatory human gate,high
+59,Interpretation,Untested mechanism as explanation,H11,mandatory human gate,high
+60,Interpretation,Hiding or spinning negative results,C41;C11;H16,fail-closed gate + human gate,medium
+61,Interpretation,Downplayed limitations,C42;H16,fail-closed gate + human gate,medium
+62,Interpretation,Recommendations bigger than the data,H11,mandatory human gate,high
+63,Interpretation,Changing position under pressure,C23;H21,fail-closed gate + human gate,medium
+64,Manuscript,Claims without citation,C09;C07;H10,fail-closed gate + human gate,high
+65,Manuscript,Internal inconsistency (abstract vs results),C39,fail-closed gate,medium
+66,Manuscript,Figure/table/text mismatch,C45;H12,fail-closed gate + human gate,medium
+67,Manuscript,Methods describe work not done,H13;C29,fail-closed gate + human gate,high
+68,Manuscript,Fabricated administrative statements,C44;H22,fail-closed gate + human gate,medium
+69,Manuscript,Subtle terminology errors,H15,mandatory human gate,high
+70,Manuscript,Bangla-English mistranslation of terms,H15,mandatory human gate,high
+71,Manuscript,Close paraphrase / tortured phrases,C14;H24,fail-closed gate + human gate,medium
+72,Manuscript,Fabricated journal guidelines,C51;H23,fail-closed gate + human gate,low
+73,Submission,Fabricated journal facts,C50;H23,fail-closed gate + human gate,low
+74,Submission,Recommending predatory journals,C50;H23,fail-closed gate + human gate,low
+75,Submission,Wrong AI-disclosure policy,C43;H23,fail-closed gate + human gate,low
+76,Agent,Claiming everything was verified,C57,fail-closed gate,low
+77,Agent,Self-evaluating own work as excellent,C46;C47,fail-closed gate,medium
+78,Agent,Not separating assumption from fact,C44;H11,fail-closed gate + human gate,high
+79,Agent,Forgetting earlier decisions in long sessions,C23;C57,fail-closed gate,medium
+80,Agent,Silently changing scope or method,C23;C41,fail-closed gate,low
+81,Agent,Fabricated or misreported tool output,C19,fail-closed gate,medium
+82,Agent,Pretending to follow the rules,C57;C53,fail-closed gate,low
+83,Reasoning,Accepting a false premise,C22,fail-closed gate,medium
+84,Reasoning,Answer steered by the prompt,C22;H04,fail-closed gate + human gate,high
+85,Reasoning,Anchoring on first sources,C16;C17,fail-closed gate,medium
+86,Reasoning,Stopping search once support is found,C17;C20,fail-closed gate,medium
+87,Reasoning,Inventing a middle ground between contradictions,H14,mandatory human gate,high
+88,Reasoning,Citation count taken as correctness,H14,mandatory human gate,high
+89,Reasoning,Verification with the same model,C47;H20,fail-closed gate + human gate,medium
+90,Synthesis,Keywords decide what is found,C16;H03,fail-closed gate + human gate,medium
+91,Synthesis,Amplified publication bias,H14,mandatory human gate,high
+92,Synthesis,Winner's curse,H14,mandatory human gate,high
+93,Synthesis,Double counting the same data,H14,mandatory human gate,high
+94,Synthesis,Averaging heterogeneous studies,H14,mandatory human gate,high
+95,Synthesis,Applying results out of context,H14;H11,mandatory human gate,high
+96,Synthesis,Hedges lost through repeated summarising,C08;H14,fail-closed gate + human gate,high
+97,Synthesis,Ignoring the middle of long documents,C08;H01,fail-closed gate + human gate,high
+98,Synthesis,Treating truncated input as complete,C08;H01,fail-closed gate + human gate,medium
+99,Agent behaviour,Modifying evaluation code or thresholds,C35;C23;C54,fail-closed gate,medium
+100,Agent behaviour,Fallback to fake data when files are missing,C31,fail-closed gate,low
+101,Agent behaviour,Swallowing errors,C31,fail-closed gate,low
+102,Agent behaviour,Reading stale outputs,C30,fail-closed gate,low
+103,Agent behaviour,Hidden analysis branches (forking paths),C29;C23;H17,fail-closed gate + human gate,medium
+104,Agent behaviour,Overwriting raw data,C25;C54,fail-closed gate,low
+105,Agent behaviour,Installing hallucinated packages (slopsquatting),C34;C54,fail-closed gate,low
+106,Agent behaviour,Excessive permissions,C54;C53,fail-closed gate,medium
+107,Agent behaviour,Prompt injection,C49,fail-closed gate,medium
+108,Agent behaviour,AI itself not reproducible,C43;H19,fail-closed gate + human gate,medium
+109,Agent behaviour,Benchmark memorisation,C24;H18,fail-closed gate + human gate,high
+110,Data format,Agriculture-specific unit errors,C27,fail-closed gate,medium
+111,Data format,Number and date format errors,C27,fail-closed gate,low
+112,Data format,Spreadsheet auto-conversion,C27,fail-closed gate,low
+113,Data format,False precision / premature rounding,C13,fail-closed gate,low
+114,Data format,Bioinformatics version confusion,C24;H18,fail-closed gate + human gate,medium
+115,Statistics traps,Numeric-coded treatments treated as continuous,C32;C27,fail-closed gate,medium
+116,Statistics traps,Software default sum-of-squares type,C24,fail-closed gate,low
+117,Statistics traps,Fixed vs random effects misassigned,C24;H09,fail-closed gate + human gate,medium
+118,Statistics traps,Transformation errors,C24,fail-closed gate,medium
+119,Statistics traps,Ignoring temporal/spatial dependence,C24;C36,fail-closed gate,medium
+120,Statistics traps,"Regression to the mean, survivorship, ecological fallacy",H11,mandatory human gate,high
+121,Statistics traps,Survey analysis errors,C24;H18,fail-closed gate + human gate,medium
+122,Statistics traps,Fabricated qualitative themes and quotes,C48,fail-closed gate,low
+123,Domain,GitHub mining without bot/fork/duplicate filtering,C24;H18,fail-closed gate + human gate,medium
+124,Domain,Claiming ethics approval is not needed,C24;C28;H22,fail-closed gate + human gate,medium
+125,Domain,Subtle equation errors,H15,mandatory human gate,high
+126,Domain,Misleading figures,C45;H12,fail-closed gate + human gate,medium
+127,Publication,False claims in the rebuttal,C52,fail-closed gate,low
+128,Publication,Manuscript and analysis versions differ,C30;C39,fail-closed gate,low
+129,Publication,Supplement differs from main text,C39;H12,fail-closed gate + human gate,medium
+130,Publication,Leaking confidential material to AI,H25,mandatory human gate,high
+131,Publication,Copyright infringement,C45;H24,fail-closed gate + human gate,medium
+132,Human,Fluency mistaken for quality,H21;H10,mandatory human gate,high
+133,Human,Automation bias,C56;H10,fail-closed gate + human gate,medium
+134,Human,Blind trust in checking tools,H26,mandatory human gate,high
+135,Human,Circular verification (AI checks AI),C47;H20,fail-closed gate + human gate,medium
+136,Human,Loss of own expertise,H21,mandatory human gate,high

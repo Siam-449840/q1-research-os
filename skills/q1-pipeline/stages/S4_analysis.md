@@ -49,3 +49,16 @@ standard methods, the expected baselines and the leakage traps of the field.
 - Random K-fold on spatial/temporal/grouped data for the headline number.
 - Different tuning effort for baselines vs the proposed method.
 - Notebook-only code that cannot be re-run top to bottom.
+
+## v1.2 requirements (enforced)
+
+- Pin the environment (`uv.lock`, `renv.lock`, `poetry.lock` or `requirements.txt` with `==`) [E57] and run
+  `rosctl verify-deps` BEFORE installing: unknown or brand-new (< 90 days) packages block [E105].
+- Every file in `results/`, `manuscript/figures/` and `manuscript/tables/` must be produced by a logged
+  `rosctl run`; hand-edited, copied or stale outputs block [E31,E49,E50,E102].
+- No synthetic fallbacks, silent `except: pass` or global warning suppression; legitimate randomness is seeded
+  and annotated `# ros: allow-random <reason>` [E100,E101].
+- Numeric-coded treatments/blocks/years declared `coded_numeric=yes` in the schema must be wrapped as factors
+  in model formulas (`C(treatment)`, `factor(block)`) [E115].
+- When S4 passes, `analysis/tests/` and `analysis/eval/` are locked. If a test fails later, fix the code, not
+  the test; only the owner can run `rosctl relock-tests --reason ...` [E99].

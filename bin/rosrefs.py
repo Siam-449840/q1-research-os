@@ -24,7 +24,11 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 LEDGER = Path("ledgers/REFERENCE_VERIFICATION.csv")
 COLUMNS = ["citekey", "doi", "url", "status", "title_similarity", "registered_title", "registered_year",
-           "bib_year", "is_retracted", "source", "checked_at"]
+           "bib_year", "first_author_bib", "first_author_registered", "work_type", "is_retracted", "source", "checked_at"]
+PREPRINT_SERVERS = re.compile(r"arxiv|biorxiv|medrxiv|ssrn|research square|preprints\.org|osf preprints|agrirxiv|eartharxiv|techrxiv", re.I)
+MIN_PACKAGE_AGE_DAYS = 90
+DEP_LEDGER = Path("ledgers/DEPENDENCY_VERIFICATION.csv")
+DEP_COLUMNS = ["package", "ecosystem", "status", "first_release", "latest_version", "checked_at"]
 MIN_TITLE_SIMILARITY = 0.85
 USER_AGENT = "Q1ResearchOS/1.1 (+https://github.com/Siam-449840/q1-research-os)"
 TIMEOUT_S = 20
@@ -126,14 +130,44 @@ def verify_doi(key: str, fields: Dict[str, str], fetch: Fetch) -> Dict[str, str]
     reg_title = " ".join(re.sub(r"<[^>]+>", "", reg_title).split())  # Crossref titles may carry JATS markup
     sim = title_similarity(fields.get("title", ""), reg_title) if fields.get("title") else 0.0
     retracted = _retracted(doi, fetch)
+    reg_year, bib_author, reg_author = _csl_year(meta), first_author(fields.get("author", "")), _csl_first_author(meta)
     if retracted == "yes" or norm_title(reg_title).startswith("retracted"):
         verdict = "retracted"
     elif sim < MIN_TITLE_SIMILARITY:
         verdict = "title_mismatch"
+    elif _year_mismatch(fields.get("year", ""), reg_year) or (bib_author and reg_author and bib_author != reg_author):
+        verdict = "metadata_mismatch"
     else:
         verdict = "verified"
     return {**row, "status": verdict, "title_similarity": f"{sim:.3f}", "registered_title": reg_title,
-            "registered_year": _csl_year(meta), "is_retracted": retracted}
+            "registered_year": reg_year, "first_author_bib": bib_author, "first_author_registered": reg_author,
+            "work_type": work_type(meta), "is_retracted": retracted}
+
+
+def first_author(author_field: str) -> str:
+    """Family name of the first author from a BibTeX author field ('Family, Given and ...' or 'Given Family')."""
+    first = re.split(r"\s+and\s+", author_field.strip(), maxsplit=1)[0].strip() if author_field.strip() else ""
+    family = first.split(",")[0] if "," in first else (first.split()[-1] if first.split() else "")
+    return norm_title(family).replace(" ", "")
+
+
+def _csl_first_author(meta: dict) -> str:
+    authors = meta.get("author") or []
+    return norm_title(authors[0].get("family", "") if authors else "").replace(" ", "")
+
+
+def _year_mismatch(bib_year: str, reg_year: str) -> bool:
+    """Online-first vs print year may differ by one; more than that is a metadata error."""
+    return bool(bib_year.strip().isdigit() and reg_year.isdigit() and abs(int(bib_year) - int(reg_year)) > 1)
+
+
+def work_type(meta: dict) -> str:
+    container = meta.get("container-title") or ""
+    container = container if isinstance(container, str) else " ".join(container)
+    publisher = str(meta.get("publisher") or "")
+    if meta.get("type") == "posted-content" or PREPRINT_SERVERS.search(container + " " + publisher):
+        return "preprint"
+    return str(meta.get("type") or "unknown")
 
 
 def verify_url(key: str, fields: Dict[str, str], fetch: Fetch) -> Dict[str, str]:
@@ -163,6 +197,72 @@ def write_ledger(root: Path, rows: List[Dict[str, str]]) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=COLUMNS, lineterminator="\n")
+        w.writeheader()
+        w.writerows(rows)
+    return path
+
+
+# ----------------------------------------------------------------------------- dependency verification [E105]
+
+def declared_dependencies(root: Path) -> List[Tuple[str, str]]:
+    """Direct dependencies from pyproject.toml, requirements*.txt and DESCRIPTION (R)."""
+    deps = set()
+    for req in root.glob("requirements*.txt"):
+        for line in req.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", line.split("#")[0])
+            if m:
+                deps.add(("pypi", m.group(1).lower()))
+    pyproject = root / "pyproject.toml"
+    if pyproject.is_file():
+        block = re.search(r"^dependencies\s*=\s*\[(.*?)\]", pyproject.read_text(encoding="utf-8"), re.S | re.M)
+        for item in re.findall(r"[\"']([^\"']+)[\"']", block.group(1) if block else ""):
+            m = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", item)
+            if m:
+                deps.add(("pypi", m.group(1).lower()))
+    desc = root / "DESCRIPTION"
+    if desc.is_file():
+        for field in re.findall(r"^(?:Imports|Depends):(.*?)(?=^\S|\Z)", desc.read_text(encoding="utf-8"), re.S | re.M):
+            for name in re.findall(r"([A-Za-z][A-Za-z0-9.]+)", field):
+                if name != "R":
+                    deps.add(("cran", name))
+    return sorted(deps)
+
+
+def verify_dependency(eco: str, name: str, fetch: Fetch, now: Optional[datetime] = None) -> Dict[str, str]:
+    now = now or datetime.now(timezone.utc)
+    row = {"package": name, "ecosystem": eco}
+    if eco == "cran":
+        status, _ = fetch(f"https://crandb.r-pkg.org/{urllib.parse.quote(name)}", {"Accept": "application/json"})
+        return {**row, "status": "verified" if status == 200 else ("not_found" if status == 404 else f"error_http_{status}")}
+    status, body = fetch(f"https://pypi.org/pypi/{urllib.parse.quote(name)}/json", {"Accept": "application/json"})
+    if status == 404:
+        return {**row, "status": "not_found"}
+    if status != 200:
+        return {**row, "status": f"error_http_{status}"}
+    try:
+        data = json.loads(body)
+    except ValueError:
+        return {**row, "status": "error_bad_response"}
+    uploads = [f["upload_time_iso_8601"] for files in data.get("releases", {}).values() for f in files if f.get("upload_time_iso_8601")]
+    if not uploads:
+        return {**row, "status": "no_releases"}
+    first = min(uploads)
+    age = (now - datetime.fromisoformat(first.replace("Z", "+00:00"))).days
+    verdict = "verified" if age >= MIN_PACKAGE_AGE_DAYS else "too_new"
+    return {**row, "status": verdict, "first_release": first[:10], "latest_version": data.get("info", {}).get("version", "")}
+
+
+def verify_dependencies(root: Path, fetch: Fetch = http_fetch) -> List[Dict[str, str]]:
+    stamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return [{c: r.get(c, "") for c in DEP_COLUMNS} | {"checked_at": stamp}
+            for r in (verify_dependency(eco, name, fetch) for eco, name in declared_dependencies(root))]
+
+
+def write_dep_ledger(root: Path, rows: List[Dict[str, str]]) -> Path:
+    path = root / DEP_LEDGER
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=DEP_COLUMNS, lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
     return path

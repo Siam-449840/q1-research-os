@@ -1,0 +1,85 @@
+control_id,kind,stage,implementation,description,tests
+C01,auto,S1,check_bib,Every reference resolves at doi.org (registry) or is a reachable URL; ledger required,test_bib_entry_without_registry_verification_is_blocked;test_nonexistent_doi_is_reported_not_found_to_stop_hallucinated_references
+C02,auto,S1,check_bib,Registered title must match bib title (>= 0.85 similarity),test_real_doi_attached_to_wrong_title_is_a_mismatch
+C03,auto,S1,check_bib,Year (+/-1) and first author must match registry,test_wrong_year_or_first_author_is_metadata_mismatch
+C04,auto,S1,check_bib,OpenAlex retraction flag blocks,test_retracted_work_is_flagged
+C05,auto,S7,check_citations,Cited preprints must be labelled 'preprint' in the citing sentence,test_preprint_cited_without_label_is_blocked
+C06,auto,S1,check_bib,URL-only references must be reachable,test_url_only_reference_reachability_is_checked
+C07,auto,S7,check_citations,Every citation needs a CLAIM_SUPPORT row,test_citation_without_claim_support_row_is_blocked
+C08,auto,S7,check_citations,Every cited source has saved text with ACCESS header; quotes must occur verbatim,test_misquote_is_blocked_when_source_text_exists;test_cited_source_without_saved_text_is_blocked
+C09,auto,S7,check_language,Consensus wording needs >= 3 citations,test_language_lint_blocks_known_misreporting_patterns
+C10,auto,S7,check_language,Novelty wording must be hedged,test_language_lint_blocks_known_misreporting_patterns
+C11,auto,S7,check_language,p-value misinterpretation and significance spin,test_language_lint_blocks_known_misreporting_patterns
+C12,auto,S7,check_language,'±' must say SD/SE/CI,test_language_lint_blocks_known_misreporting_patterns
+C13,auto,S7,check_language,No false precision (>= 5 decimals),test_language_lint_blocks_known_misreporting_patterns
+C14,auto,S7,check_language,Tortured phrases,test_language_lint_blocks_known_misreporting_patterns
+C15,auto,S7,check_language,Hype words,test_language_lint_blocks_known_misreporting_patterns
+C16,auto,S1,stage_s1,>= 10 logged queries over >= 3 sources,test_search_log_requires_counter_evidence_grey_and_raw_outputs
+C17,auto,S1,stage_s1,>= 1 counter-evidence search logged,test_search_log_requires_counter_evidence_grey_and_raw_outputs
+C18,auto,S1,stage_s1,Grey/regional literature searched,test_search_log_requires_counter_evidence_grey_and_raw_outputs
+C19,auto,S1,stage_s1,Each search row keeps its raw tool output; hit counts match,test_search_log_requires_counter_evidence_grey_and_raw_outputs
+C20,auto,S1,stage_s1,Novelty verdict has contrary-evidence and search-limitation sections,test_search_log_requires_counter_evidence_grey_and_raw_outputs
+C21,auto,S0,lint_proposal,"Proposal lint: falsifiable hypotheses, decision rules, data, validation",test_blank_template_is_blocked_to_prevent_agents_starting_on_placeholders;test_hypothesis_without_decision_rule_is_blocked_because_it_cannot_be_falsified
+C22,auto,S0,check_neutral_questions,Research questions must not presuppose answers,test_leading_research_question_is_blocked
+C23,auto,S2,stage_s2,Protocol SHA-256 frozen at S2; changes only as dated deviations,test_protocol_edit_after_freeze_is_detected_but_deviation_log_is_allowed
+C24,auto,S2,check_protocol_requirements,Method-conditional protocol requirements (24 rules),test_protocol_method_rules_fire_and_clear
+C25,auto,S3,stage_s3,Raw data hashed and read-only,test_modified_raw_data_is_detected_by_hash
+C26,auto,S3,stage_s3,"Data provenance: URL, license, path",test_full_pipeline_s0_to_s10_then_fault_injection
+C27,auto,S3,check_schema,"Data schema: units, types, ranges, date formats, mangled values",test_schema_catches_units_dates_decimal_commas_excel_and_bengali_digits
+C28,auto,S3,check_pii,Personal data requires an ethics statement,test_personal_data_requires_ethics_statement
+C29,auto,S4,stage_s4,Successful logged runs and passing tests after freeze,test_run_logs_failures_and_propagates_exit_code;test_full_pipeline_s0_to_s10_then_fault_injection
+C30,auto,S4,check_outputs,Result files must equal the output of a logged run and not be stale,test_hand_edited_or_stale_results_are_blocked
+C31,auto,S4,check_code,"No synthetic fallbacks, silent excepts or suppressed warnings in analysis code",test_code_hygiene_blocks_synthetic_fallbacks_and_silent_excepts
+C32,auto,S4,check_factor_formulas,Numeric-coded categoricals wrapped as factors in formulas,test_numeric_coded_factor_in_formula_is_blocked
+C33,auto,S4,check_environment,Pinned environment lock file,test_missing_lockfile_and_unverified_dependency_block_s4
+C34,auto,S4,check_environment,Dependencies exist and are >= 90 days old,test_missing_lockfile_and_unverified_dependency_block_s4;test_dependency_verifier_flags_missing_and_brand_new_packages
+C35,auto,S4,check_test_lock,Tests/evaluation code locked after S4,test_tests_modified_after_lock_are_blocked
+C36,auto,S4,check_splits,Split manifest: no group in train and test,test_group_in_train_and_test_of_same_fold_is_leakage
+C37,auto,S5,check_recompute,Independent re-computation within tolerance,test_mismatch_is_blocked_so_silent_bugs_stop_the_pipeline
+C38,auto,S7,check_stats,p-values recomputed from statistics,test_inconsistent_p_value_is_blocked_and_decision_errors_named
+C39,auto,S7,check_numbers,Every number traced to an exact cell,test_unprovenanced_number_is_blocked_to_prevent_fabricated_results;test_value_elsewhere_in_file_no_longer_counts
+C40,auto,S7,check_numbers,Performance numbers must not come from training data,test_training_set_metric_is_blocked
+C41,auto,S7,check_manuscript_structure,Every protocol hypothesis reported,test_dropped_hypothesis_and_thin_limitations_are_blocked
+C42,auto,S7,check_manuscript_structure,Limitations section >= 120 words,test_dropped_hypothesis_and_thin_limitations_are_blocked
+C43,auto,S7,check_ai_log,AI usage log and declaration consistency,test_ai_usage_log_required_and_declared
+C44,auto,S7,check_manuscript_structure,"Required sections, no placeholders or [VERIFY]",test_full_pipeline_s0_to_s10_then_fault_injection
+C45,auto,S6,stage_s6,"Figures script-generated from logged runs, error bars declared",test_figure_needs_error_bar_type_and_logged_script
+C46,auto,S8,check_review,"Four independent reviewer reports, no self-scoring",test_self_review_without_reports_is_blocked
+C47,auto,S8,check_review,At least one reviewer differs from the drafting model,test_reviews_all_by_drafting_model_are_blocked
+C48,auto,S7,check_participant_quotes,Participant quotes must occur in raw transcripts,test_invented_participant_quote_is_blocked
+C49,auto,S1,check_injection,Prompt-injection scan of sources; human acknowledgement required,test_prompt_injection_in_sources_blocks_until_human_ack
+C50,auto,S9,stage_s9,Journal verified by owner with source and date,test_full_pipeline_s0_to_s10_then_fault_injection
+C51,auto,S9,stage_s9,Downloaded guide for authors required,test_submission_requires_downloaded_guide_for_authors
+C52,auto,S10,stage_s10,Rebuttal 'Change' quotes must exist in manuscript,test_rebuttal_claiming_absent_change_is_blocked
+C53,auto,S1,approval_refusal,Approvals refused in agent sessions / non-TTY,test_agent_environment_and_agent_ancestry_are_refused
+C54,auto,S0,check_claude_settings,Claude Code project permissions deny protected paths and human-only commands,test_claude_code_settings_deny_protected_paths_and_human_commands
+C55,auto,S4,stage_s4,Last failed run blocks (stop on failure),test_run_logs_failures_and_propagates_exit_code
+C56,auto,S8,spot_check_sample,Random spot-check sample shown at S8 approval,test_approval_checklist_and_spot_check_are_recorded
+C57,auto,S0,run_stage_checks,Cumulative gates; regression clears later passes,test_failed_gate_clears_its_own_and_all_later_passes_so_status_never_lies
+C58,auto,S3,check_cleaning_log,"Processed data require a cleaning log (rows in/out, rule, script)",test_processed_data_requires_cleaning_log
+H01,human,S1,rosctl approve S1,I read the three closest papers in full text myself (not only abstracts or AI summaries).,test_approval_checklist_and_spot_check_are_recorded
+H02,human,S1,rosctl approve S1,"Novelty rests on evidence, not on missing search hits; the contrary evidence was examined; the method is not an old one renamed.",test_approval_checklist_and_spot_check_are_recorded
+H03,human,S1,rosctl approve S1,"Regional, grey and non-English sources relevant to the setting (national institutes, theses, reports) were searched.",test_approval_checklist_and_spot_check_are_recorded
+H04,human,S1,rosctl approve S1,"The agent challenged my idea; time, budget, data, equipment and software are realistic.",test_approval_checklist_and_spot_check_are_recorded
+H05,human,S1,rosctl approve S1,"The sources cited in NOVELTY_VERDICT really say what is attributed to them, and they are primary sources.",test_approval_checklist_and_spot_check_are_recorded
+H06,human,S2,rosctl approve S2,The design matches the question; causal claims only where the design identifies causation; controls and confounders are listed.,test_approval_checklist_and_spot_check_are_recorded
+H07,human,S2,rosctl approve S2,"Experimental unit, replication, blocking and season/location effects are correct (no pseudoreplication).",test_approval_checklist_and_spot_check_are_recorded
+H08,human,S2,rosctl approve S2,"Sample size/power and every protocol constant (doses, rates, varieties, seasons, local units, standards) come from cited official sources.",test_approval_checklist_and_spot_check_are_recorded
+H09,human,S2,rosctl approve S2,"Model choices are right: fixed vs random effects, sum-of-squares type, transformations, assumption checks, post-hoc tests, interactions.",test_approval_checklist_and_spot_check_are_recorded
+H10,human,S8,rosctl approve S8,I verified the randomly sampled numbers against the results files and the sampled claims against the source passages.,test_approval_checklist_and_spot_check_are_recorded
+H11,human,S8,rosctl approve S8,"No overstatement: no may->does, lab->field, correlation->causation, untested mechanisms, or generalisation beyond sites, seasons and populations.",test_approval_checklist_and_spot_check_are_recorded
+H12,human,S8,rosctl approve S8,"Figures, tables, captions and supplement agree with the text; axes are not misleading; error bars are defined.",test_approval_checklist_and_spot_check_are_recorded
+H13,human,S8,rosctl approve S8,"Methods describe only what was actually done (checked against RUN_LOG, scripts and the cleaning log).",test_approval_checklist_and_spot_check_are_recorded
+H14,human,S8,rosctl approve S8,"Synthesis is honest: contradictions reported not averaged away; publication bias, small-study effects, double-counted trials, heterogeneity, context transfer and hedges handled.",test_approval_checklist_and_spot_check_are_recorded
+H15,human,S8,rosctl approve S8,"Terminology, Bangla<->English translations, equations and notation are correct and consistent.",test_approval_checklist_and_spot_check_are_recorded
+H16,human,S8,rosctl approve S8,Negative and contrary results are reported; limitations are specific and not spun.,test_approval_checklist_and_spot_check_are_recorded
+H17,human,S8,rosctl approve S8,"All analysis runs, including exploratory and failed ones, are disclosed (no garden of forking paths).",test_approval_checklist_and_spot_check_are_recorded
+H18,human,S8,rosctl approve S8,"Benchmark contamination and domain pitfalls (genome versions, repository-mining filters, survey validity, qualitative coding) are addressed.",test_approval_checklist_and_spot_check_are_recorded
+H19,human,S8,rosctl approve S8,"The AI usage log (models, versions, dates, prompts) is complete enough to reproduce the AI-assisted steps.",test_approval_checklist_and_spot_check_are_recorded
+H20,human,S8,rosctl approve S8,At least one reviewer was a human or a different model family; AI output was not verified only by the same AI.,test_approval_checklist_and_spot_check_are_recorded
+H21,human,S8,rosctl approve S8,"I can explain and defend every analysis and claim myself, without the AI.",test_approval_checklist_and_spot_check_are_recorded
+H22,human,S9,rosctl approve S9,"Ethics approval, consent, funding, acknowledgements, author contributions and data-availability statements are true and documented.",test_approval_checklist_and_spot_check_are_recorded
+H23,human,S9,rosctl approve S9,"Journal facts (scope, indexing, quartile, APC, AI policy, author guidelines) were verified on official sites; the journal is not predatory.",test_approval_checklist_and_spot_check_are_recorded
+H24,human,S9,rosctl approve S9,An institutional similarity check was run; there is no close paraphrase; third-party figures/tables have permission.,test_approval_checklist_and_spot_check_are_recorded
+H25,human,S9,rosctl approve S9,No confidential or unpublished data or manuscripts were given to AI services that the applicable policies forbid.,test_approval_checklist_and_spot_check_are_recorded
+H26,human,S9,rosctl approve S9,Automated checker outputs were reviewed for false positives/negatives instead of being trusted blindly.,test_approval_checklist_and_spot_check_are_recorded

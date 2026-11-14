@@ -19,7 +19,7 @@ sys.modules["rosctl"] = rosctl
 spec.loader.exec_module(rosctl)
 
 EXAMPLE = ROOT / "examples/agriculture-rice-yield-transfer/PROPOSAL.md"
-LEDGER_HEADER = "citekey,doi,url,status,title_similarity,registered_title,registered_year,bib_year,is_retracted,source,checked_at\n"
+LEDGER_HEADER = "citekey,doi,url,status,title_similarity,registered_title,registered_year,bib_year,is_retracted,source,checked_at\n"  # v1.1 subset; extra v1.2 columns are optional for gates
 
 
 def quiet(fn, *args):
@@ -163,6 +163,7 @@ class TestCitations(ProjectCase):
                    "smith2020yield,10.1/x,,verified,0.990,T,2020,2020,no,doi.org,2026-11-14T00:00:00Z\n")
 
     def test_supported_citation_passes_and_emails_are_not_citations(self):
+        self.write("literature/text/smith2020yield.txt", "ACCESS: full-text\nIn the panel, yields rose steadily.")
         self.write("manuscript/manuscript.md", "## Introduction\nYields rose [@smith2020yield]. Contact me@uni.edu.\n")
         rep = rosctl.check_citations(self.proj)
         self.assertFalse(any("smith2020yield" in b for b in rep.blockers))

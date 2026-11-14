@@ -34,3 +34,13 @@ reproduce the study and nobody (including you) can silently change the inputs.
 - Manually downloaded files with no script and no access date.
 - Editing a raw CSV "to fix a typo" (do it in processing code instead).
 - Ignoring licenses that forbid redistribution (then share code + access steps, not the data).
+
+## v1.2 requirements (enforced)
+
+- `data/SCHEMA.csv` (`file,column,type,unit,min,max,date_format,coded_numeric,notes`) for every analysed
+  column: units mandatory for continuous/count, date formats mandatory, plausible min/max. `rosctl` scans the
+  files for out-of-range values (e.g. kg/ha vs t/ha), decimal commas, Bengali digits, wrong date formats and
+  spreadsheet-mangled IDs [E33,E110-E112].
+- Personal data (names, phones, e-mails, NIDs) in raw files requires `data/ETHICS.md` (>= 80 words) [E37,E124].
+- Anything in `data/processed/` requires `ledgers/DATA_CLEANING_LOG.csv` (`rows_in`, `rows_out`, `rule`,
+  `script`): no silent cleaning [E34].

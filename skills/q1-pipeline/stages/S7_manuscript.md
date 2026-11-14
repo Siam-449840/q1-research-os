@@ -57,3 +57,15 @@ Keywords / Highlights → statements (data, code, AI use, CRediT, competing inte
 - "Previous studies have shown [@a; @b; @c]" where only one actually shows it.
 - Discussion that only restates results.
 - Limitations that are generic ("more data is needed").
+
+## v1.2 requirements (enforced)
+
+- Language lint blocks: consensus claims with fewer than 3 citations [E12]; unhedged first-study claims
+  [E17]; "proves", non-significance read as no effect, highly/marginally significant [E41,E60]; a plus-minus
+  sign without SD/SE/CI [E44]; five or more decimals [E113]; tortured phrases [E71]; hype words [E20]. Causal
+  verbs are listed for reviewers [E48].
+- Every pre-registered hypothesis appears in the manuscript [E60,E80]; Limitations has >= 120 words [E61].
+- Performance numbers traced only to training data block [E47]; participant quotes must occur verbatim in
+  `data/raw` transcripts [E122].
+- Log every AI-assisted step in `ledgers/AI_USAGE_LOG.csv` (tool, model, version, date, purpose, prompt and
+  output refs) and name each tool in the generative-AI declaration [E75,E108].

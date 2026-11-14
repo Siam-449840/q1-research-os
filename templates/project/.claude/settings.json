@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(/data/raw/**)",
+      "Edit(/.ros/**)",
+      "Edit(/ledgers/OUTPUT_MANIFEST.jsonl)",
+      "Edit(/ledgers/RUN_LOG.csv)",
+      "Edit(/ledgers/REFERENCE_VERIFICATION.csv)",
+      "Edit(/ledgers/DEPENDENCY_VERIFICATION.csv)",
+      "Bash(rosctl approve *)",
+      "Bash(rosctl relock-tests *)",
+      "Bash(rosctl ack-injection *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(rm -rf *)"
+    ],
+    "ask": [
+      "Bash(pip install *)",
+      "Bash(uv add *)",
+      "Bash(uv pip install *)",
+      "Bash(conda install *)",
+      "Bash(Rscript -e install.packages*)",
+      "Bash(git push *)"
+    ]
+  }
+}

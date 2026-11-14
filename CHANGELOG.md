@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.0 (2026-11-14)
+
+Audit against a 136-item catalogue of AI-assisted research errors.
+
+- `core/ERROR_CONTROLS.csv` + `core/CONTROLS.csv`: every error mapped to fail-closed gates and/or
+  mandatory human checks; integrity test fails if any mapping, function or test is missing.
+- Human checklists enforced by `rosctl approve` (26 items over S1, S2, S8, S9); S8 adds a random spot-check
+  of 3 numbers and 3 claims. Approvals recorded with an older checklist must be redone.
+- New gates: manuscript language lint, analysis-code hygiene (synthetic fallbacks, silent excepts),
+  numeric-coded factors, data schema (units, ranges, date formats, decimal commas, Bengali digits,
+  spreadsheet-mangled IDs), personal-data detection, cleaning log, output provenance via
+  `ledgers/OUTPUT_MANIFEST.jsonl` (hand-edited and stale outputs blocked), pinned environment,
+  `rosctl verify-deps` (anti-slopsquatting), test/evaluation lock after S4, prompt-injection scan,
+  protocol method requirements (24 rules), neutral research questions, counter-evidence and grey-literature
+  searches with raw outputs, novelty-verdict sections, ACCESS-declared source texts for every citation,
+  preprint labelling, reference metadata mismatch, training-set metrics, hypothesis coverage, limitations
+  length, AI usage log, figure error-bar type, reviewer model diversity, guide for authors, rebuttal truth.
+- Claude Code project permissions template (`.claude/settings.json`) and constitution rules 14-16.
+- CI: Python 3.9/3.13 via uv (runner images no longer ship 3.9).
+- Tests: 52 -> 81; mutation testing 25/25 killed.
+
 ## 1.1.0 (2026-11-14)
 
 Hardening after an adversarial audit in which 7 of 7 gaming attempts passed the v1.0.0 gates.

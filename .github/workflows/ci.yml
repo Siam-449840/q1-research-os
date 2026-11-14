@@ -5,15 +5,17 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: ["3.9", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python }}
-      - name: Unit tests
+          python-version: "3.12"
+      - name: Unit, control and end-to-end tests (3.12)
         run: python -m unittest discover -s tests -v
       - name: Worked example passes the proposal linter
         run: python bin/rosctl.py lint-proposal examples/agriculture-rice-yield-transfer/PROPOSAL.md
+      # Ubuntu runner images no longer ship 3.9; uv provides the interpreters reproducibly.
+      - name: Oldest and newest supported Python (3.9, 3.13) via uv
+        run: |
+          python -m pip install "uv==0.5.11"
+          for v in 3.9 3.13; do uv run --no-project --python "$v" python -m unittest discover -s tests; done
