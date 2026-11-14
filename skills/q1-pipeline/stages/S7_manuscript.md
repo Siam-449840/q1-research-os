@@ -12,7 +12,8 @@ Keywords / Highlights → statements (data, code, AI use, CRediT, competing inte
 
 - **Methods:** enough detail to replicate: data (IDs, versions, access dates), preprocessing, models,
   hyperparameter search, validation design, metrics, statistics as pre-registered, software versions
-  (in `code spans`), seeds, hardware, and a "Deviations from protocol" paragraph. Cite the reporting
+  (in `code spans`), seeds, hardware, and a "Deviations from protocol" paragraph. The Deviations paragraph must match
+  `ledgers/PROTOCOL_EXECUTION.csv`; the S7 gate blocks "no deviations" while any analysis is a deviation or unexecuted. Cite the reporting
   guideline you followed.
 - **Results:** one subsection per RQ. First sentence answers the RQ. Then numbers with uncertainty and
   figure/table references. No interpretation beyond the numbers. Exploratory results clearly labelled.
@@ -25,6 +26,8 @@ Keywords / Highlights → statements (data, code, AI use, CRediT, competing inte
 - **Title:** specific; includes the main variable, approach and setting; no hype.
 
 ## Mechanics
+
+After editing text, run `rosctl provenance --apply`: it re-points ledger rows whose line moved (C60).
 
 1. Draft ≤ 800 words at a time in `manuscript/manuscript.md` (or one file per section; files starting
    with `_` are ignored by checks).

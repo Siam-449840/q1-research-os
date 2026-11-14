@@ -6,7 +6,7 @@ Generated from `core/ERROR_CONTROLS.csv` and `core/CONTROLS.csv` by `bin/gen_mat
 - **H** controls are mandatory human checks: `rosctl approve` will not record an approval until the owner confirms each item for that stage.
 - **Residual risk** is what remains *after* the controls, judged honestly. No control makes a risk zero.
 
-Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory human gate: 21. Residual risk: high: 31, low: 35, medium: 70.
+Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory human gate: 21. Residual risk: high: 30, low: 35, medium: 71.
 
 | # | Category | Error | Controls | Enforcement | Residual |
 |---|---|---|---|---|---|
@@ -48,7 +48,7 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | 36 | Dataset | Assuming representativeness | H11 | mandatory human gate | high |
 | 37 | Dataset | Ignoring license and privacy | C26, C28, H22 | fail-closed gate + human gate | medium |
 | 38 | Statistics | Mental arithmetic instead of code | C39, C29 | fail-closed gate | low |
-| 39 | Statistics | Text numbers differ from code output | C39 | fail-closed gate | low |
+| 39 | Statistics | Text numbers differ from code output | C39, C60 | fail-closed gate | low |
 | 40 | Statistics | Unchecked test assumptions | C24, H09 | fail-closed gate + human gate | medium |
 | 41 | Statistics | p-value misinterpretation | C11 | fail-closed gate | medium |
 | 42 | Statistics | No multiple-comparison correction | C24, C23, H09 | fail-closed gate + human gate | medium |
@@ -69,14 +69,14 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | 57 | ML | Not reproducible (no pins, seeds, environment) | C33, C25, C29 | fail-closed gate | low |
 | 58 | Interpretation | Over-generalisation | H11 | mandatory human gate | high |
 | 59 | Interpretation | Untested mechanism as explanation | H11 | mandatory human gate | high |
-| 60 | Interpretation | Hiding or spinning negative results | C41, C11, H16 | fail-closed gate + human gate | medium |
+| 60 | Interpretation | Hiding or spinning negative results | C41, C59, C11, H16 | fail-closed gate + human gate | medium |
 | 61 | Interpretation | Downplayed limitations | C42, H16 | fail-closed gate + human gate | medium |
 | 62 | Interpretation | Recommendations bigger than the data | H11 | mandatory human gate | high |
 | 63 | Interpretation | Changing position under pressure | C23, H21 | fail-closed gate + human gate | medium |
 | 64 | Manuscript | Claims without citation | C09, C07, H10 | fail-closed gate + human gate | high |
 | 65 | Manuscript | Internal inconsistency (abstract vs results) | C39 | fail-closed gate | medium |
 | 66 | Manuscript | Figure/table/text mismatch | C45, H12 | fail-closed gate + human gate | medium |
-| 67 | Manuscript | Methods describe work not done | H13, C29 | fail-closed gate + human gate | high |
+| 67 | Manuscript | Methods describe work not done | C59, H13, C29 | fail-closed gate + human gate | medium |
 | 68 | Manuscript | Fabricated administrative statements | C44, H22 | fail-closed gate + human gate | medium |
 | 69 | Manuscript | Subtle terminology errors | H15 | mandatory human gate | high |
 | 70 | Manuscript | Bangla-English mistranslation of terms | H15 | mandatory human gate | high |
@@ -89,7 +89,7 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | 77 | Agent | Self-evaluating own work as excellent | C46, C47 | fail-closed gate | medium |
 | 78 | Agent | Not separating assumption from fact | C44, H11 | fail-closed gate + human gate | high |
 | 79 | Agent | Forgetting earlier decisions in long sessions | C23, C57 | fail-closed gate | medium |
-| 80 | Agent | Silently changing scope or method | C23, C41 | fail-closed gate | low |
+| 80 | Agent | Silently changing scope or method | C23, C41, C59 | fail-closed gate | low |
 | 81 | Agent | Fabricated or misreported tool output | C19 | fail-closed gate | medium |
 | 82 | Agent | Pretending to follow the rules | C57, C53 | fail-closed gate | low |
 | 83 | Reasoning | Accepting a false premise | C22 | fail-closed gate | medium |
@@ -111,8 +111,8 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | 99 | Agent behaviour | Modifying evaluation code or thresholds | C35, C23, C54 | fail-closed gate | medium |
 | 100 | Agent behaviour | Fallback to fake data when files are missing | C31 | fail-closed gate | low |
 | 101 | Agent behaviour | Swallowing errors | C31 | fail-closed gate | low |
-| 102 | Agent behaviour | Reading stale outputs | C30 | fail-closed gate | low |
-| 103 | Agent behaviour | Hidden analysis branches (forking paths) | C29, C23, H17 | fail-closed gate + human gate | medium |
+| 102 | Agent behaviour | Reading stale outputs | C30, C60 | fail-closed gate | low |
+| 103 | Agent behaviour | Hidden analysis branches (forking paths) | C29, C23, C59, H17 | fail-closed gate + human gate | medium |
 | 104 | Agent behaviour | Overwriting raw data | C25, C54 | fail-closed gate | low |
 | 105 | Agent behaviour | Installing hallucinated packages (slopsquatting) | C34, C54 | fail-closed gate | low |
 | 106 | Agent behaviour | Excessive permissions | C54, C53 | fail-closed gate | medium |
@@ -209,6 +209,8 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | C56 | auto | S8 | `spot_check_sample` | Random spot-check sample shown at S8 approval |
 | C57 | auto | S0 | `run_stage_checks` | Cumulative gates; regression clears later passes |
 | C58 | auto | S3 | `check_cleaning_log` | Processed data require a cleaning log (rows in/out, rule, script) |
+| C59 | auto | S7 | `check_execution` | Every pre-registered analysis (A#) executed by a logged run or recorded as a deviation; false no-deviation claims blocked |
+| C60 | auto | S7 | `check_numbers` | Each provenance row with a file:line location must still find its value on that manuscript line (no stale bindings after edits) |
 | H01 | human | S1 | `rosctl approve S1` | I read the three closest papers in full text myself (not only abstracts or AI summaries). |
 | H02 | human | S1 | `rosctl approve S1` | Novelty rests on evidence, not on missing search hits; the contrary evidence was examined; the method is not an old one renamed. |
 | H03 | human | S1 | `rosctl approve S1` | Regional, grey and non-English sources relevant to the setting (national institutes, theses, reports) were searched. |

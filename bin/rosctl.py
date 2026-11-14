@@ -181,8 +181,9 @@ def git_commit(root: Path) -> str:
 
 
 def strip_code(text: str) -> str:
-    text = re.sub(r"```.*?```", "", text, flags=re.S)
-    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+    keep_lines = lambda m: "\n" * m.group(0).count("\n")  # noqa: E731  line numbers must stay valid
+    text = re.sub(r"```.*?```", keep_lines, text, flags=re.S)
+    text = re.sub(r"<!--.*?-->", keep_lines, text, flags=re.S)
     return re.sub(r"`[^`\n]*`", "", text)
 
 
@@ -451,11 +452,32 @@ def _check_provenance_row(root: Path, i: int, row: Dict[str, str], rep: Report) 
                   f"{cell.strip()!r} at {row['results_file']} [{row.get('locator')}]")
 
 
+LOCATION_RE = re.compile(r"^(manuscript/[^:]+\.md):(\d+)$")
+
+
+def _check_location(root: Path, i: int, row: Dict[str, str], lines: Dict[str, Dict[int, List[str]]], rep: Report) -> None:
+    """A `file.md:N` location must still hold the value, so edits cannot leave rows bound to old text. [C60]"""
+    m = LOCATION_RE.match((row.get("manuscript_location") or "").strip())
+    if not m:
+        return
+    rel, ln = m.group(1), int(m.group(2))
+    if rel not in lines:
+        mf = root / rel
+        lines[rel] = {}
+        for n, tok in manuscript_numbers(read_text(mf)) if mf.is_file() else []:
+            lines[rel].setdefault(n, []).append(tok)
+    if not any(number_matches(tok, row.get("value", "")) for tok in lines[rel].get(ln, [])):
+        rep.block(f"NUMBER_PROVENANCE row {i}: value {row.get('value')!r} is not on {rel}:{ln} (stale location after "
+                  f"an edit?) - re-run `rosctl provenance` or `rosctl cite-number` [E39,E102]")
+
+
 def check_numbers(root: Path) -> Report:
     rep = Report("numbers")
     prov = read_csv(root / "ledgers/NUMBER_PROVENANCE.csv")
+    lines: Dict[str, Dict[int, List[str]]] = {}
     for i, row in enumerate(prov, 2):
         _check_provenance_row(root, i, row, rep)
+        _check_location(root, i, row, lines, rep)
         if not row.get("script"):
             rep.block(f"NUMBER_PROVENANCE row {i}: 'script' (generator) is empty")
     values = [r.get("value", "") for r in prov]
@@ -988,6 +1010,9 @@ def stage_s2(root: Path, state: dict) -> Report:
         rep.block("every hypothesis needs an explicit 'Decision rule'")
     rep.extend(_wrap("method requirements", rosqa.check_protocol_requirements(core)))
     frozen = state.get("protocol_hash")
+    if not frozen and not re.search(r"\bA\d+\b", core):
+        rep.block("label every pre-registered analysis A1, A2, ... (primary, baselines, robustness, diagnostics, "
+                  "multiplicity) so its execution can be checked [E67,E80]")
     if frozen and frozen != protocol_hash(root):
         rep.block("PROTOCOL.md changed after freeze. Revert it; record changes ONLY under '## Deviations'")
     return rep
@@ -1071,11 +1096,52 @@ def stage_s7(root: Path, state: dict) -> Report:
     rep.title = "S7 manuscript"
     rep.extend(check_numbers(root))
     rep.extend(check_metric_split(root))
+    rep.extend(check_execution(root, state))
     rep.extend(check_citations(root))
     rep.extend(check_stats(root))
     rep.extend(check_language(root))
     rep.extend(check_ai_log(root))
     rep.extend(check_participant_quotes(root))
+    return rep
+
+
+NO_DEVIATION_RE = re.compile(r"\bno deviations?\b|\bwithout (any )?deviations?\b|\bdid not deviate\b", re.I)
+
+
+def check_execution(root: Path, state: dict) -> Report:
+    """Every pre-registered analysis A# was executed (result produced by a logged run) or recorded as a deviation. [E67,E80,E60,E103]"""
+    rep = Report("protocol execution")
+    ids = sorted(set(re.findall(r"\bA\d+\b", protocol_core(root))), key=lambda x: int(x[1:]))
+    rows = {r.get("analysis_id", "").strip(): r for r in read_csv(root / "ledgers/PROTOCOL_EXECUTION.csv")}
+    if not ids:
+        if state.get("protocol_hash") and not rows:
+            rep.block("frozen protocol has no A# labels: list every pre-registered analysis in ledgers/PROTOCOL_EXECUTION.csv "
+                      "(analysis_id, description, status, results_file, locator, notes) [E67]")
+        ids = sorted(rows)
+    manifest = output_manifest(root)
+    deviations = read_text(root / "protocol/PROTOCOL.md")[len(protocol_core(root)):]
+    any_deviation = False
+    for aid in ids:
+        row = rows.get(aid)
+        if row is None:
+            rep.block(f"pre-registered analysis {aid} has no row in ledgers/PROTOCOL_EXECUTION.csv (was it run?) [E67,E80]")
+            continue
+        status = row.get("status", "").strip().lower()
+        if status == "done":
+            f = row.get("results_file", "")
+            if f not in manifest or manifest[f]["sha"] != (sha256_file(root / f) if (root / f).is_file() else ""):
+                rep.block(f"{aid} marked done but '{f}' is not the output of a logged run [E67]")
+            elif row.get("locator") and resolve_locator(root / f, row["locator"]) is None:
+                rep.block(f"{aid}: locator {row['locator']!r} does not resolve in {f} [E67]")
+        elif status == "deviation":
+            any_deviation = True
+            if aid not in deviations:
+                rep.block(f"{aid} marked deviation but not explained under '## Deviations' in PROTOCOL.md [E80]")
+        else:
+            rep.block(f"{aid}: status must be 'done' or 'deviation' [E67]")
+    text = manuscript_text(root)
+    if any_deviation and NO_DEVIATION_RE.search(text):
+        rep.block("manuscript claims there were no deviations, but the execution ledger records some [E67]")
     return rep
 
 
@@ -1195,7 +1261,10 @@ def find_root(start: Path) -> Path:
     for p in [start, *start.parents]:
         if (p / STATE_FILE).exists():
             return p
-    raise SystemExit("error: not inside a Q1 Research OS project (no .ros/state.json). Use `rosctl init <dir>`.")
+    nearby = sorted(p.parent.parent for p in start.glob("*/.ros/state.json"))
+    hint = "".join(f"\n  cd {p} && rosctl <command>" for p in nearby[:5])
+    raise SystemExit("error: not inside a Q1 Research OS project (no .ros/state.json)."
+                     + (f" Projects found below this folder:{hint}" if nearby else " Use `rosctl init <dir>`."))
 
 
 def current_stage(state: dict) -> str:
@@ -1339,7 +1408,7 @@ def cmd_approve(args: argparse.Namespace) -> int:
             return 1
     phrase = f"I APPROVE {stage}"
     if input(f"You are the accountable researcher. Type exactly '{phrase}': ").strip() != phrase:
-        print("Not approved.")
+        print(f"Not approved: the final confirmation must be the exact sentence '{phrase}'. Nothing was recorded.")
         return 1
     record_approval(root, state, stage, args.note or "", checklist, spots)
     print(f"{stage} approved. Now run `rosctl gate {stage}`.")
@@ -1411,13 +1480,14 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 2
     start = time.time()
     before = tracked_outputs(root)
+    started_ns = time.time_ns()
     try:
         code = subprocess.run(cmd, cwd=root).returncode
     except OSError as exc:
         print(f"error: cannot execute {cmd[0]}: {exc}")
         code = 127
     if code == 0:
-        record_outputs(root, cmd, before)
+        record_outputs(root, cmd, before, started_ns)
     log = root / "ledgers/RUN_LOG.csv"
     new = not log.exists() or log.stat().st_size == 0
     with log.open("a", newline="", encoding="utf-8") as fh:
@@ -1430,10 +1500,12 @@ def cmd_run(args: argparse.Namespace) -> int:
     return code
 
 
-def record_outputs(root: Path, cmd: List[str], before: Dict[str, str]) -> None:
-    """Append the files this run created or changed, with the analysis code they came from. [E31,E49,E102]"""
+def record_outputs(root: Path, cmd: List[str], before: Dict[str, str], started_ns: int = 0) -> None:
+    """Append the files this run created, changed or rewrote, with the analysis code they came from. [E31,E49,E102]"""
     after = tracked_outputs(root)
-    changed = {p: sha for p, sha in after.items() if before.get(p) != sha}
+    # a deterministic re-run after a code edit rewrites identical bytes; it must still refresh the record
+    changed = {p: sha for p, sha in after.items()
+               if before.get(p) != sha or (started_ns and (root / p).stat().st_mtime_ns >= started_ns)}
     if not changed:
         return
     entry = {"at": now_utc(), "command": " ".join(cmd), "commit": git_commit(root), "outputs": changed,
@@ -1623,10 +1695,70 @@ def significant_digits(token: str) -> int:
     return len(re.sub(r"[^0-9]", "", token.rstrip("%")).lstrip("0"))
 
 
+def relocate_stale_rows(root: Path, apply: bool) -> Tuple[int, int]:
+    """Re-point rows whose `file.md:N` no longer holds their value after text moved. Rows with the same value are
+    matched to the free lines holding it in reading order, and only when the counts agree; otherwise left for a
+    decision. Returns (moved, unresolved). [C60]"""
+    path = root / "ledgers/NUMBER_PROVENANCE.csv"
+    rows = read_csv(path)
+    slots: Dict[Tuple[str, float], List[int]] = {}  # (file, numeric value) -> lines holding it, as number_matches
+    for mf in manuscript_files(root):
+        rel = str(mf.relative_to(root))
+        for ln, tok in manuscript_numbers(read_text(mf)):
+            if to_float(tok) is not None:
+                slots.setdefault((rel, to_float(tok)), []).append(ln)
+    stale: Dict[Tuple[str, float], List[Tuple[int, dict]]] = {}
+    for row in rows:
+        m = LOCATION_RE.match((row.get("manuscript_location") or "").strip())
+        if not m or to_float(row.get("value", "")) is None:
+            continue
+        key, ln = (m.group(1), to_float(row.get("value", ""))), int(m.group(2))
+        free = slots.get(key, [])
+        if ln in free:
+            free.remove(ln)  # this row still holds its line
+        else:
+            stale.setdefault(key, []).append((ln, row))
+    moved = unresolved = 0
+    shifts: Dict[str, List[Tuple[int, int]]] = {}  # file -> (old line, shift) of unambiguous moves
+    pending = []
+    for key, items in stale.items():
+        free = sorted(slots.get(key, []))
+        if len(free) != len(items):
+            pending.append((key, items, free))
+            continue
+        for (ln, row), new in zip(sorted(items, key=lambda t: t[0]), free):
+            row["manuscript_location"] = f"{key[0]}:{new}"
+            shifts.setdefault(key[0], []).append((ln, new - ln))
+            print(f"  moved    {row.get('value'):<10} {key[0]}:{ln} -> {key[0]}:{new}")
+            moved += 1
+    for key, items, free in pending:
+        for ln, row in sorted(items, key=lambda t: t[0]):
+            near = min(shifts.get(key[0], []), key=lambda t: abs(t[0] - ln), default=None)
+            new = ln + near[1] if near else None
+            if new in free:  # same shift as the nearest unambiguous move, and the value is on that line
+                free.remove(new)
+                row["manuscript_location"] = f"{key[0]}:{new}"
+                print(f"  moved    {row.get('value'):<10} {key[0]}:{ln} -> {key[0]}:{new} (nearest shift)")
+                moved += 1
+            else:
+                unresolved += 1
+                print(f"  RELOCATE {row.get('value'):<10} {key[0]}:{ln} is stale and its new line is ambiguous - "
+                      f"fix with `rosctl cite-number`")
+    if apply and moved:
+        with path.open("w", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()), lineterminator="\n")
+            w.writeheader()
+            w.writerows(rows)
+    return moved, unresolved
+
+
 def cmd_provenance(args: argparse.Namespace) -> int:
     """Find the exact results cell for every unprovenanced manuscript number; --apply writes unambiguous rows."""
     root = find_root(Path.cwd())
-    values = [r.get("value", "") for r in read_csv(root / "ledgers/NUMBER_PROVENANCE.csv")]
+    moved, unresolved = relocate_stale_rows(root, args.apply)
+    if moved or unresolved:
+        print(f"stale locations: {moved} {'moved' if args.apply else 'movable (use --apply)'}, {unresolved} need a decision")
+    values =[r.get("value", "") for r in read_csv(root / "ledgers/NUMBER_PROVENANCE.csv")]
     files = [root / p for p in tracked_outputs(root) if p.startswith(("results/", "manuscript/tables/"))]
     if (root / "protocol/PROTOCOL.md").is_file():
         files.append(root / "protocol/PROTOCOL.md")
@@ -1707,6 +1839,7 @@ CHECKS: Dict[str, Callable[[Path], Report]] = {
     "schema": check_schema, "outputs": check_outputs, "environment": check_environment, "ai-log": check_ai_log,
     "cleaning": check_cleaning_log, "quotes": check_participant_quotes, "metric-split": check_metric_split,
     "reviewers": check_reviewer_diversity, "permissions": check_claude_settings,
+    "execution": lambda root: check_execution(root, load_state(root)),
 }
 
 
