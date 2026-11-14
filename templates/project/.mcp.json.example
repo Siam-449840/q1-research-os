@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "paper-search": {
+      "type": "stdio",
+      "command": "paper-search-mcp",
+      "args": []
+    },
+    "zotero": {
+      "type": "stdio",
+      "command": "zotero-mcp",
+      "args": ["serve"],
+      "env": { "ZOTERO_LOCAL": "true" }
+    }
+  }
+}

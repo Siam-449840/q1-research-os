@@ -1,0 +1,14 @@
+# Large or restricted data: keep out of git, keep the hashes in ledgers/DATA_PROVENANCE.csv
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+literature/pdfs/*
+!literature/pdfs/.gitkeep
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+!.env.example

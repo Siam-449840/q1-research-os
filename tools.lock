@@ -1,0 +1,30 @@
+{
+  "scientific-agent-skills": {
+    "url": "https://github.com/K-Dense-AI/scientific-agent-skills.git",
+    "commit": "2d2065fb4520fa3f3f2bcf61cff26ec8b7eba4b5"
+  },
+  "claude-scholar": {
+    "url": "https://github.com/Galaxy-Dawn/claude-scholar.git",
+    "commit": "d394fb599ed9e6ea2212a9e6daa864345fe97a26"
+  },
+  "paper-qa": {
+    "url": "https://github.com/Future-House/paper-qa.git",
+    "commit": "c692d0dfeac4a0296599f7fe21a253a58b7ac12a"
+  },
+  "paper-search-mcp": {
+    "url": "https://github.com/openags/paper-search-mcp.git",
+    "commit": "cab1b5cc276a0cd004a0044003926a6440088049"
+  },
+  "refchecker": {
+    "url": "https://github.com/markrussinovich/refchecker.git",
+    "commit": "27a81896c0c3d7361fb95b4d14b24a86f02c9c0d"
+  },
+  "bibvet": {
+    "url": "https://github.com/dipta007/bibvet.git",
+    "commit": "97f93c3fd92cb4d302a4f53b832bd72dbad6de5f"
+  },
+  "zotero-mcp": {
+    "url": "https://github.com/54yyyu/zotero-mcp.git",
+    "commit": "1cb99f6a35b03b5cb3b93f45b7804c488fb7a80f"
+  }
+}
