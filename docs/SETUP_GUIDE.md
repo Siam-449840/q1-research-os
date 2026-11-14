@@ -72,7 +72,10 @@ Available domain packs: `agriculture` (deep, 13 subfields), `software-engineerin
 
 ### Claude Code
 
-1. Open a terminal in the project folder and run `claude` (or open the folder in the desktop app).
+1. Open a terminal **in the project folder** and run `claude` (or open that folder in the desktop app).
+   Claude Code applies the project permission rules (`.claude/settings.json`) only when the session
+   starts in that folder; a session started in a parent folder reads the rules and skills but does not
+   enforce the permissions (verified in the November 2026 pilot).
 2. Claude Code reads `CLAUDE.md` automatically and discovers the skills in `.claude/skills/`.
 3. Optional MCP servers: `cp .mcp.json.example .mcp.json` (requires `--with-tools`). Approve the
    servers when Claude Code asks.
