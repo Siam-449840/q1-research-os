@@ -8,6 +8,15 @@ description: Systematic, logged, legal literature search and reference verificat
 Every action here must leave a trace: queries → `ledgers/SEARCH_LOG.csv`, references →
 `refs/refs.bib` (with DOI/URL), claims → `ledgers/CLAIM_SUPPORT.csv`.
 
+## 0. Built-in helpers (prefer these; they log automatically)
+
+```bash
+rosctl search "<query>" --source openalex --purpose main      # or counter-evidence, grey/regional
+rosctl search "<query>" --source pubmed --purpose main        # any paper-search source if installed
+rosctl add-ref 10.1111/ecog.02881 10.1016/j.patter.2023.100804   # registry BibTeX + verification
+rosctl fetch-text roberts2017cross                              # ACCESS-declared source text
+```
+
 ## 1. Search (paper-search-mcp)
 
 ```bash

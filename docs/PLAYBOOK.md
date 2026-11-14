@@ -239,3 +239,26 @@ For experiments, the protocol, provenance and writing parts still help; data col
 **Can I skip a stage?** Gates are cumulative, so skipping is not possible by design. If a check truly
 does not apply, record the reason in `ledgers/DECISION_LOG.csv` and discuss it in an issue so the check
 can be improved.
+
+## Who does what at each stage (v1.3)
+
+**AI-full** = the agent does it end to end and a gate verifies it. **AI-partial** = the agent drafts or proposes,
+a check or a person decides. **Human** = only the owner can do it; `rosctl` enforces that.
+
+| Stage | AI-full (verified by code) | AI-partial | Human (enforced) |
+|---|---|---|---|
+| S0 Proposal | lint, hype/leading-question detection | critique, sharper framings | the question, the hypotheses, accepting edits |
+| S1 Literature | `rosctl search` (raw output + log), `add-ref` (registry BibTeX + verification), `fetch-text` (ACCESS-declared text), retraction/metadata/preprint checks | screening, closest-work table, novelty verdict | read closest papers, judge novelty (H01-H05), `approve S1` |
+| S2 Protocol | 24 method-requirement rules, freeze hash | drafting the protocol | design and model choices (H06-H09), `approve S2` |
+| S3 Data | `rosctl fetch` (download, hash, provenance, read-only), schema/unit/date/PII scans | dataset discovery, cleaning code | licence reading, ethics |
+| S4 Analysis | logged runs, output manifest, split leakage audit, code hygiene, dependency verification, test lock | writing analysis code and tests | relocking tests (with reason) |
+| S5 Re-computation | tolerance comparison | independent re-implementation (fresh session) | none |
+| S6 Figures | script/run provenance, dpi, error-bar type | figure design, captions | judging the message |
+| S7 Manuscript | `rosctl provenance --apply` (unique matches), number/citation/quote/p-value/language checks, AI log | drafting text, choosing ambiguous number cells | voice, interpretation |
+| S8 Review | four reports present, reviewer diversity, scorecard rules | the reviews themselves | checklist H10-H21 + random spot-check, `approve S8` |
+| S9 Submission | checklist, guide-for-authors and journal-check presence | cover letter, formatting | journal verification, similarity check, H22-H26, **submitting** |
+
+Ledger rows the helpers now write that v1.2 required by hand: every SEARCH_LOG row and raw file, every BibTeX
+entry and verification row, every source-text file with its ACCESS header, every DATA_PROVENANCE row (with hash),
+unique NUMBER_PROVENANCE rows, and AI_USAGE_LOG rows. Still manual by design: screening decisions, CLOSEST_WORK,
+CLAIM_SUPPORT quotes (a person or agent must read the passage), ambiguous number cells.

@@ -60,7 +60,9 @@ Q1 Research OS takes the opposite approach:
   exact-cell number provenance, machine-checked quotes, p-value recomputation, train/test leakage
   audit, independent re-computation and independent review, plus (v1.2) language, code-hygiene,
   data-schema, output-provenance, dependency, prompt-injection and reviewer-diversity checks. Stdlib only;
-  81 tests incl. a full S0→S10 end-to-end run with 6 fault injections; 25/25 mutants killed.
+  93 tests incl. a full S0→S10 end-to-end run with 6 fault injections; 32/32 mutants killed.
+- **Automation helpers (v1.3)** that write ledgers correctly instead of by hand: `search`, `add-ref`,
+  `fetch-text`, `fetch`, `provenance --apply`, `log-ai`, and `next` (blockers → fix commands).
 - **A research constitution** (`AGENTS.md` = `CLAUDE.md` = `GEMINI.md`) with 13 absolute rules
   (no fabrication, stop on failure, traceable numbers, independent re-computation, verified
   citations, frozen protocol, read-only raw data, legal access, human gates, no external actions,
@@ -187,6 +189,13 @@ What you should check before each approval: [docs/PLAYBOOK.md §4](docs/PLAYBOOK
 | `rosctl status` | stage progress and pending approvals |
 | `rosctl gate [STAGE]` | run cumulative checks up to STAGE (default: current); record a pass or clear a stale one |
 | `rosctl approve STAGE [--note]` | **human only**, S1/S2/S8/S9; needs an interactive terminal and a typed phrase; refused inside AI-agent sessions (environment markers, process ancestry); S2 freezes the protocol |
+| `rosctl next` | current blockers grouped by the exact command that fixes them (read-only) |
+| `rosctl search "<q>" [--source S] [--purpose P]` | **network**: search (OpenAlex built in, any paper-search source), save raw output, log the row |
+| `rosctl add-ref <DOI...>` | **network**: registry BibTeX, stable citekey, immediate verification; unresolvable DOIs are never added |
+| `rosctl fetch-text <key...>` | save `literature/text/<key>.txt` with an honest ACCESS header (full text from a local PDF via pdftotext, else abstract-only) |
+| `rosctl fetch <URL> --id D1 --license "..."` | **network**: download into `data/raw/D1/`, hash, provenance row, run log, read-only; never overwrites |
+| `rosctl provenance [--apply]` | find the results cell for each unprovenanced manuscript number; applies only unique matches with >= 3 significant digits |
+| `rosctl log-ai --tool --model --purpose` | append an AI_USAGE_LOG row |
 | `rosctl verify-deps` | **network**: every declared PyPI/CRAN package must exist and be >= 90 days old (anti-slopsquatting); writes `ledgers/DEPENDENCY_VERIFICATION.csv` |
 | `rosctl relock-tests --reason "..."` | **human only**: accept changed tests/evaluation code after S4 (agents are refused) |
 | `rosctl ack-injection <file>` | **human only**: acknowledge an inspected source flagged for prompt injection |
@@ -363,3 +372,26 @@ q1-research-os/
   [bibvet](https://github.com/dipta007/bibvet),
   [zotero-mcp](https://github.com/54yyyu/zotero-mcp) and the [OpenAlex](https://openalex.org/) API.
   Third-party components keep their own licenses and are fetched, not redistributed.
+
+## Who does what at each stage (v1.3)
+
+**AI-full** = the agent does it end to end and a gate verifies it. **AI-partial** = the agent drafts or proposes,
+a check or a person decides. **Human** = only the owner can do it; `rosctl` enforces that.
+
+| Stage | AI-full (verified by code) | AI-partial | Human (enforced) |
+|---|---|---|---|
+| S0 Proposal | lint, hype/leading-question detection | critique, sharper framings | the question, the hypotheses, accepting edits |
+| S1 Literature | `rosctl search` (raw output + log), `add-ref` (registry BibTeX + verification), `fetch-text` (ACCESS-declared text), retraction/metadata/preprint checks | screening, closest-work table, novelty verdict | read closest papers, judge novelty (H01-H05), `approve S1` |
+| S2 Protocol | 24 method-requirement rules, freeze hash | drafting the protocol | design and model choices (H06-H09), `approve S2` |
+| S3 Data | `rosctl fetch` (download, hash, provenance, read-only), schema/unit/date/PII scans | dataset discovery, cleaning code | licence reading, ethics |
+| S4 Analysis | logged runs, output manifest, split leakage audit, code hygiene, dependency verification, test lock | writing analysis code and tests | relocking tests (with reason) |
+| S5 Re-computation | tolerance comparison | independent re-implementation (fresh session) | none |
+| S6 Figures | script/run provenance, dpi, error-bar type | figure design, captions | judging the message |
+| S7 Manuscript | `rosctl provenance --apply` (unique matches), number/citation/quote/p-value/language checks, AI log | drafting text, choosing ambiguous number cells | voice, interpretation |
+| S8 Review | four reports present, reviewer diversity, scorecard rules | the reviews themselves | checklist H10-H21 + random spot-check, `approve S8` |
+| S9 Submission | checklist, guide-for-authors and journal-check presence | cover letter, formatting | journal verification, similarity check, H22-H26, **submitting** |
+
+Ledger rows the helpers now write that v1.2 required by hand: every SEARCH_LOG row and raw file, every BibTeX
+entry and verification row, every source-text file with its ACCESS header, every DATA_PROVENANCE row (with hash),
+unique NUMBER_PROVENANCE rows, and AI_USAGE_LOG rows. Still manual by design: screening decisions, CLOSEST_WORK,
+CLAIM_SUPPORT quotes (a person or agent must read the passage), ambiguous number cells.

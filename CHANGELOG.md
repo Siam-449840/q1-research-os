@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0 (2026-11-14)
+
+Productivity release: the v1.2 gates required many hand-written ledger rows; helpers now write them.
+
+- `rosctl search`: OpenAlex built in (any paper-search source if installed); raw output saved, row logged; failures log nothing.
+- `rosctl add-ref <DOI...>`: registry BibTeX via doi.org, stable citekey, immediate registry verification; unresolvable DOIs never added.
+- `rosctl fetch-text <key...>`: ACCESS-declared source text (full text from local PDF via pdftotext, else OpenAlex abstract, marked abstract-only).
+- `rosctl fetch <URL> --id --license`: download, hash, provenance, run log, read-only; refuses missing licence, overwrites and oversize files.
+- `rosctl provenance [--apply]`: candidate results cells for every unprovenanced number; applies only unique matches with >= 3 significant digits and a known producing script; reports CHOOSE/MISSING.
+- `rosctl log-ai`, `rosctl next` (blockers grouped by fix command).
+- Skills and stage playbooks direct agents to the helpers; per-stage automation table in README and PLAYBOOK.
+- Tests: 81 -> 93; mutation testing 32/32 killed (incl. helpers).
+
 ## 1.2.0 (2026-11-14)
 
 Audit against a 136-item catalogue of AI-assisted research errors.

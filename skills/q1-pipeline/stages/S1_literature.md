@@ -69,3 +69,9 @@ recommendation. The owner reads the key papers and runs `rosctl approve S1` (or 
   [E3] and records `work_type`; preprints must be called preprints wherever cited [E14].
 - At `rosctl approve S1` the owner confirms H01-H05 (read closest papers, evidence-based novelty, regional
   literature, realistic feasibility, sources say what is claimed).
+
+## Fast path (v1.3)
+
+`rosctl search` for every query (it keeps the raw output and logs hits), `rosctl add-ref <DOI...>` for every
+selected paper (registry BibTeX + verification in one step), `rosctl fetch-text <key...>` for source texts.
+You still screen papers, fill `screened`/`included`, CLOSEST_WORK and the verdict: those are judgements.

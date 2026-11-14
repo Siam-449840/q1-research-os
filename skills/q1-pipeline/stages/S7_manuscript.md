@@ -69,3 +69,10 @@ Keywords / Highlights → statements (data, code, AI use, CRediT, competing inte
   `data/raw` transcripts [E122].
 - Log every AI-assisted step in `ledgers/AI_USAGE_LOG.csv` (tool, model, version, date, purpose, prompt and
   output refs) and name each tool in the generative-AI declaration [E75,E108].
+
+## Fast path (v1.3)
+
+After each drafting chunk run `rosctl provenance`: it lists every unprovenanced number with its candidate
+results cells. `rosctl provenance --apply` writes rows only for unique matches with >= 3 significant digits
+whose producing script is known from the output manifest; decide the `CHOOSE` items yourself and treat
+`MISSING` items as errors in the text. Log AI assistance with `rosctl log-ai`.
