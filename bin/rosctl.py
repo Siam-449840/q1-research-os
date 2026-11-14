@@ -24,10 +24,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 FRAMEWORK_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(FRAMEWORK_ROOT / "bin"))
-import rosqa  # noqa: E402  (sibling stdlib-only modules)
+import rosauto  # noqa: E402  (sibling stdlib-only modules)
+import rosqa  # noqa: E402
 import rosrefs  # noqa: E402
 import rosstats  # noqa: E402
 
@@ -1491,6 +1492,174 @@ def cmd_verify_deps(args: argparse.Namespace) -> int:
     return 1 if bad else 0
 
 
+NEXT_HINTS = [
+    ("[proposal]", "edit PROPOSAL.md (docs/PROPOSAL_GUIDE.md) or ask the agent: 'use the q1-proposal skill'; then rosctl lint-proposal"),
+    ("[neutral questions]", "rephrase the research question neutrally in PROPOSAL.md"),
+    ("run `rosctl verify-refs`", "rosctl verify-refs"),
+    ("failed registry verification", "fix or remove the entry, then rosctl verify-refs (or rosctl add-ref <DOI> for a correct one)"),
+    ("no saved source text", "rosctl fetch-text <citekey>   (put a legal PDF at literature/pdfs/<citekey>.pdf for full text)"),
+    ("raw_output file missing", "re-run searches with: rosctl search \"<query>\" --source openalex --purpose main"),
+    ("counter-evidence", "rosctl search \"<query against your hypothesis>\" --purpose counter-evidence"),
+    ("grey/regional", "rosctl search \"<regional/grey query>\" --purpose grey/regional"),
+    ("has no row in ledgers/NUMBER_PROVENANCE", "rosctl provenance --apply   (then add the ambiguous ones by hand)"),
+    ("not produced by a logged", "regenerate the file: rosctl run -- <script>"),
+    ("STALE", "re-run the producing script: rosctl run -- <script>"),
+    ("rosctl verify-deps", "rosctl verify-deps"),
+    ("AI_USAGE_LOG", "rosctl log-ai --tool <tool> --model <model> --purpose <what it did>"),
+    ("DATA_PROVENANCE.csv has no rows", "rosctl fetch <URL> --id D1 --license \"<license from source page>\""),
+    ("needs owner approval", "OWNER, in your own terminal: rosctl approve <stage>"),
+    ("waiting for owner", "OWNER, in your own terminal: rosctl approve <stage>"),
+    ("predates the current human checklist", "OWNER: re-run rosctl approve <stage>"),
+]
+
+
+def cmd_next(args: argparse.Namespace) -> int:
+    """Show the current stage's blockers grouped by the command that fixes them. Writes nothing."""
+    root = find_root(Path.cwd())
+    state = load_state(root)
+    stage = current_stage(state)
+    if stage == "DONE":
+        print("All stages passed.")
+        return 0
+    rep = run_stage_checks(root, state, stage)
+    print(f"Current stage {stage} ({STAGE_NAMES[stage]}): {len(rep.blockers)} blockers")
+    groups: Dict[str, List[str]] = {}
+    for b in rep.blockers:
+        hint = next((h for needle, h in NEXT_HINTS if needle in b), "manual fix (see the blocker text and the stage playbook)")
+        groups.setdefault(hint, []).append(b)
+    for hint, items in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+        print(f"\n  -> {hint}   [{len(items)}]")
+        for b in items[:4]:
+            print(f"     - {b[:150]}")
+        if len(items) > 4:
+            print(f"     ... and {len(items) - 4} more")
+    return 0 if rep.ok else 1
+
+
+def cmd_search(args: argparse.Namespace) -> int:
+    root = find_root(Path.cwd())
+    try:
+        row = rosauto.run_search(root, args.query, args.source, args.purpose, args.year_from, rosrefs.http_fetch)
+    except (RuntimeError, ValueError) as exc:
+        print(f"SEARCH FAILED: {exc}")
+        return 1
+    print(f"logged: {row['hits']} hits from {row['source']} -> {row['raw_output']}")
+    return 0
+
+
+def cmd_add_ref(args: argparse.Namespace) -> int:
+    root = find_root(Path.cwd())
+    rc = 0
+    for doi in args.dois:
+        try:
+            key, row = rosauto.add_reference(root, doi, rosrefs.http_fetch, args.key if len(args.dois) == 1 else "")
+        except RuntimeError as exc:
+            print(f"  FAILED {doi}: {exc}")
+            rc = 1
+            continue
+        status = row.get("status")
+        print(f"  {status:<18} @{key}  {row.get('registered_title', '')[:70]}")
+        rc = rc or (0 if status in rosrefs.OK_STATUSES | {"already_present"} else 1)
+    return rc
+
+
+def cmd_fetch_text(args: argparse.Namespace) -> int:
+    root = find_root(Path.cwd())
+    rc = 0
+    for key in args.keys:
+        try:
+            print(f"  {rosauto.fetch_text(root, key, rosrefs.http_fetch):<14} literature/text/{key}.txt")
+        except (RuntimeError, ValueError) as exc:
+            print(f"  FAILED {key}: {exc}")
+            rc = 1
+    return rc
+
+
+def _fetch_bytes(max_mb: float) -> Callable[[str], bytes]:
+    import urllib.request
+
+    def get(url: str) -> bytes:
+        req = urllib.request.Request(url, headers={"User-Agent": rosrefs.USER_AGENT})
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            length = int(resp.headers.get("Content-Length") or 0)
+            if length > max_mb * 1e6:
+                raise RuntimeError(f"{length / 1e6:.0f} MB exceeds --max-mb {max_mb}; ask the owner first")
+            data = resp.read(int(max_mb * 1e6) + 1)
+            if len(data) > max_mb * 1e6:
+                raise RuntimeError(f"download exceeds --max-mb {max_mb}; ask the owner first")
+            return data
+    return get
+
+
+def cmd_fetch(args: argparse.Namespace) -> int:
+    root = find_root(Path.cwd())
+    start = time.time()
+    try:
+        row = rosauto.download_dataset(root, args.url, args.id, args.license, args.name, _fetch_bytes(args.max_mb), sha256_file)
+        code = 0
+    except Exception as exc:  # noqa: BLE001 - any failure is reported and logged, never hidden
+        print(f"FETCH FAILED: {exc}")
+        row, code = None, 1
+    rosauto.append_row(root / "ledgers/RUN_LOG.csv", ["timestamp_utc", "command", "git_commit", "exit_code", "duration_s", "notes"],
+                       {"timestamp_utc": now_utc(), "command": f"rosctl fetch {args.url} --id {args.id}", "git_commit": git_commit(root),
+                        "exit_code": str(code), "duration_s": f"{time.time() - start:.1f}", "notes": "data download"})
+    if row:
+        print(f"saved {row['path']} ({row['size_bytes']} bytes, sha256 {row['sha256'][:12]}...), provenance row added, file set read-only")
+    return code
+
+
+def _producing_script(root: Path, results_file: str) -> str:
+    rec = output_manifest(root).get(results_file)
+    if not rec:
+        return ""
+    return next((t for t in (rec.get("command") or "").split() if t.endswith((".py", ".R", ".r", ".jl"))), "")
+
+
+def significant_digits(token: str) -> int:
+    return len(re.sub(r"[^0-9]", "", token.rstrip("%")).lstrip("0"))
+
+
+def cmd_provenance(args: argparse.Namespace) -> int:
+    """Find the exact results cell for every unprovenanced manuscript number; --apply writes unambiguous rows."""
+    root = find_root(Path.cwd())
+    values = [r.get("value", "") for r in read_csv(root / "ledgers/NUMBER_PROVENANCE.csv")]
+    files = [root / p for p in tracked_outputs(root) if p.startswith(("results/", "manuscript/tables/"))]
+    applied = ambiguous = missing = 0
+    for mf in manuscript_files(root):
+        for ln, tok in manuscript_numbers(read_text(mf)):
+            if any(number_matches(tok, v) for v in values):
+                continue
+            cands = rosauto.locator_candidates(root, tok, value_matches_cell, files)
+            loc = f"{mf.relative_to(root)}:{ln}"
+            script = _producing_script(root, cands[0][0]) if len(cands) == 1 else ""
+            if len(cands) == 1 and significant_digits(tok) >= 3 and script and args.apply:
+                rosauto.append_row(root / "ledgers/NUMBER_PROVENANCE.csv", rosauto.NUM_HEADER,
+                                   {"number_id": f"auto{len(values) + applied + 1}", "value": tok, "manuscript_location": loc,
+                                    "results_file": cands[0][0], "locator": cands[0][1], "script": script,
+                                    "notes": "rosctl provenance (unique match)"})
+                values.append(tok)
+                applied += 1
+                print(f"  applied  {tok:<10} {loc} <- {cands[0][0]} [{cands[0][1]}]")
+            elif not cands:
+                missing += 1
+                print(f"  MISSING  {tok:<10} {loc}: no results cell rounds to this value (fabricated or mis-typed?)")
+            else:
+                ambiguous += 1
+                why = "too few significant digits" if len(cands) == 1 else f"{len(cands)} candidates"
+                print(f"  CHOOSE   {tok:<10} {loc} ({why}): " + "; ".join(f"{f} [{l}]" for f, l in cands[:4]))
+    print(f"applied {applied}, need a decision {ambiguous}, no source {missing}")
+    return 1 if missing else 0
+
+
+def cmd_log_ai(args: argparse.Namespace) -> int:
+    root = find_root(Path.cwd())
+    rosauto.append_row(root / "ledgers/AI_USAGE_LOG.csv", rosauto.AI_HEADER,
+                       {"timestamp_utc": now_utc(), "tool": args.tool, "model": args.model, "model_version": args.model_version,
+                        "purpose": args.purpose, "prompt_ref": args.prompt_ref, "output_ref": args.output_ref})
+    print("AI usage logged.")
+    return 0
+
+
 def cmd_hash(args: argparse.Namespace) -> int:
     root = find_root(Path.cwd())
     w = csv.writer(sys.stdout, lineterminator="\n")
@@ -1588,6 +1757,38 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(fn=cmd_check)
     sub.add_parser("verify-refs", help="resolve refs.bib DOIs/URLs against registries (network)").set_defaults(fn=cmd_verify_refs)
     sub.add_parser("verify-deps", help="check declared packages exist and are >= 90 days old (network)").set_defaults(fn=cmd_verify_deps)
+    sub.add_parser("next", help="current blockers grouped by the command that fixes them").set_defaults(fn=cmd_next)
+    s = sub.add_parser("search", help="search literature, save raw output, log it (network)")
+    s.add_argument("query")
+    s.add_argument("--source", default="openalex", help="openalex (built in) or any paper-search source")
+    s.add_argument("--purpose", default="main", help="main | counter-evidence | grey/regional | snowball")
+    s.add_argument("--year-from", default="")
+    s.set_defaults(fn=cmd_search)
+    s = sub.add_parser("add-ref", help="add references by DOI: registry BibTeX + citekey + verification (network)")
+    s.add_argument("dois", nargs="+")
+    s.add_argument("--key", default="")
+    s.set_defaults(fn=cmd_add_ref)
+    s = sub.add_parser("fetch-text", help="save literature/text/<key>.txt with an honest ACCESS header")
+    s.add_argument("keys", nargs="+")
+    s.set_defaults(fn=cmd_fetch_text)
+    s = sub.add_parser("fetch", help="download a dataset into data/raw/<id>/, hash it, add provenance (network)")
+    s.add_argument("url")
+    s.add_argument("--id", required=True)
+    s.add_argument("--license", required=True)
+    s.add_argument("--name", default="")
+    s.add_argument("--max-mb", type=float, default=2048)
+    s.set_defaults(fn=cmd_fetch)
+    s = sub.add_parser("provenance", help="find results cells for unprovenanced manuscript numbers")
+    s.add_argument("--apply", action="store_true", help="write rows for unique, >= 3-significant-digit matches")
+    s.set_defaults(fn=cmd_provenance)
+    s = sub.add_parser("log-ai", help="append an AI usage record")
+    s.add_argument("--tool", required=True)
+    s.add_argument("--model", required=True)
+    s.add_argument("--purpose", required=True)
+    s.add_argument("--model-version", default="")
+    s.add_argument("--prompt-ref", default="")
+    s.add_argument("--output-ref", default="")
+    s.set_defaults(fn=cmd_log_ai)
     s = sub.add_parser("relock-tests", help="HUMAN ONLY: accept changed tests after review")
     s.add_argument("--reason", required=True)
     s.set_defaults(fn=cmd_relock_tests)

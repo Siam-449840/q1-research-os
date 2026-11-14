@@ -17,7 +17,8 @@ repeat:
   2. read stages/<STAGE>.md in this skill   # the stage playbook; follow it literally
   3. read .ros/domain/DOMAIN.md + the domain file the playbook names
   4. do the work; run analyses only via:   rosctl run -- <cmd>
-  5. rosctl gate                           # machine check
+  5. rosctl next                           # blockers grouped by the command that fixes them
+     rosctl gate                           # machine check
        FAIL  -> fix blockers, re-run (max 3 tries per blocker, then ask the owner)
        NEEDS APPROVAL -> write the checkpoint, STOP, ask the owner to run `rosctl approve <STAGE>`
        PASS  -> write the checkpoint, continue with the next stage
@@ -76,3 +77,20 @@ rationale to `ledgers/DECISION_LOG.csv` whenever you choose between alternatives
   than the limit in PROPOSAL.md §11, and at every human gate.
 - If the environment lacks a tool, run `rosctl doctor`, tell the owner the exact install command, and
   continue with whatever does not depend on it.
+
+## Automation helpers (v1.3): use these instead of hand-writing ledger rows
+
+| Task | Command | Writes |
+|---|---|---|
+| What to do now | `rosctl next` | nothing (read-only guide) |
+| Literature search | `rosctl search "<query>" --source openalex --purpose main\|counter-evidence\|grey/regional` | raw JSON + SEARCH_LOG row |
+| Add references | `rosctl add-ref <DOI> [<DOI> ...]` | registry BibTeX + citekey + verification row |
+| Source text | `rosctl fetch-text <citekey> ...` (legal PDF at `literature/pdfs/<key>.pdf` gives full text) | `literature/text/<key>.txt` with ACCESS header |
+| Download data | `rosctl fetch <URL> --id D1 --license "<from source page>"` | `data/raw/D1/...` (read-only) + provenance + run log |
+| Number provenance | `rosctl provenance` then `rosctl provenance --apply` | NUMBER_PROVENANCE rows for unique matches only |
+| AI usage | `rosctl log-ai --tool ... --model ... --purpose ...` | AI_USAGE_LOG row |
+
+Helpers refuse instead of guessing: a failed request logs nothing, an unresolvable DOI is never added,
+raw files are never overwritten, and numbers with several candidate cells or < 3 significant digits are
+left for you to decide (`CHOOSE`). A number with no matching cell (`MISSING`) means it is mistyped or
+fabricated: fix the text, never the ledger.

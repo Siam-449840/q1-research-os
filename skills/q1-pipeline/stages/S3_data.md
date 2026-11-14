@@ -44,3 +44,9 @@ reproduce the study and nobody (including you) can silently change the inputs.
 - Personal data (names, phones, e-mails, NIDs) in raw files requires `data/ETHICS.md` (>= 80 words) [E37,E124].
 - Anything in `data/processed/` requires `ledgers/DATA_CLEANING_LOG.csv` (`rows_in`, `rows_out`, `rule`,
   `script`): no silent cleaning [E34].
+
+## Fast path (v1.3)
+
+`rosctl fetch <URL> --id <D#> --license "<license text from the source page>" [--max-mb N]` downloads into
+`data/raw/<D#>/`, hashes the file, adds the DATA_PROVENANCE row, logs the run and makes the file read-only.
+Use download scripts (via `rosctl run`) only for multi-file or API-paginated sources.
