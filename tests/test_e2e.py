@@ -39,7 +39,7 @@ def rmse(rows, a, b):
 rows = [(r["site"], float(r["x"]), float(r["y"])) for r in csv.DictReader(open("data/raw/d1/plots.csv"))]
 sites = sorted({r[0] for r in rows})
 random.seed(20261114)
-shuffled = rows[:]; random.shuffle(shuffled)
+shuffled = rows[:]; random.shuffle(shuffled)  # ros: allow-random shuffling for the random K-fold comparison arm
 rand_folds = [shuffled[i::5] for i in range(5)]
 split_rows, grp, rnd = [], [], []
 for k, site in enumerate(sites, 1):
@@ -112,7 +112,8 @@ class TestEndToEnd(ProjectCase):
         code, out = self.gate(stage)
         self.assertEqual(code, 1)
         self.assertIn(f"rosctl approve {stage}", out)
-        rosctl.record_approval(self.proj, rosctl.load_state(self.proj), stage, "e2e")
+        rosctl.record_approval(self.proj, rosctl.load_state(self.proj), stage, "e2e",
+                               checklist=rosctl.human_controls(self.proj, stage))
         self.assert_gate(stage)
 
     def run_logged(self, *cmd):
@@ -122,9 +123,12 @@ class TestEndToEnd(ProjectCase):
     # ---------------------------------------------------------------- stages
     def s1_literature(self):
         self.write("literature/SEARCH_PROTOCOL.md", "# Search protocol\n\n" + PROSE * 6)
-        self.write("ledgers/SEARCH_LOG.csv", "date,source,query,filters,hits,screened,included,notes\n" + "".join(
-            f"2026-11-14,{src},q{i},2015-2026,{30 + i},{10 + i},2,\n" for i, src in
-            enumerate(["openalex", "crossref", "semantic"] * 4)))
+        purposes = ["main", "counter-evidence", "grey/regional"] + ["main"] * 9
+        for i in range(12):
+            self.write(f"literature/search_raw/q{i}.json", json.dumps({"total": 30 + i, "papers": []}))
+        self.write("ledgers/SEARCH_LOG.csv", "date,source,query,filters,purpose,hits,screened,included,raw_output,notes\n" + "".join(
+            f"2026-11-14,{src},q{i},2015-2026,{purposes[i]},{30 + i},{10 + i},2,literature/search_raw/q{i}.json,\n"
+            for i, src in enumerate(["openalex", "crossref", "semantic"] * 4)))
         keys = [f"work{i:02d}" for i in range(10)]
         self.write("refs/refs.bib", "".join(f"@article{{{k},\n title={{Title of {k}}},\n doi={{10.5555/{k}}},\n year={{2020}}\n}}\n" for k in keys))
         self.write("literature/CLOSEST_WORK.csv",
@@ -134,14 +138,16 @@ class TestEndToEnd(ProjectCase):
         registry["openalex"] = (200, '{"is_retracted": false}')
         rows = rosctl.rosrefs.verify_bib(rosctl.parse_bib(self.proj / "refs/refs.bib"), fetch=fake_fetch(registry), pause_s=0)
         rosctl.rosrefs.write_ledger(self.proj, rows)
-        self.write("literature/NOVELTY_VERDICT.md", "# Novelty verdict\n\nRecommendation: proceed.\n\n" + PROSE * 8)
+        self.write("literature/NOVELTY_VERDICT.md", "# Novelty verdict\n\nRecommendation: proceed.\n\n" + PROSE * 8
+                   + "\n## Contrary evidence\n\n" + PROSE + "\n## Search limitations\n\n" + PROSE)
 
     def s2_protocol(self):
         sections = ["Research Questions", "Hypotheses", "Data", "Variables", "Primary Analysis", "Validation Strategy",
                     "Robustness and Sensitivity", "Multiple Comparisons and Uncertainty", "Stopping Rules", "Success Criteria"]
         body = "# Protocol\n\n" + "".join(f"## {i}. {s}\n\n{PROSE * 2}\n\n" for i, s in enumerate(sections, 1))
         body = body.replace("## 2. Hypotheses\n\n", "## 2. Hypotheses\n\nH1: leave-site-out RMSE exceeds random-CV RMSE. "
-                                                    "Decision rule: supported if the paired t-test on fold differences gives p below alpha.\n\n")
+                                                    "Decision rule: supported if the paired t-test on fold differences gives p below alpha. "
+                                                    "Normality of the fold differences is checked first.\n\n")
         self.write("protocol/PROTOCOL.md", body + "## 11. Deviations\n\nNone yet.\n")
 
     def s3_data(self):
@@ -153,6 +159,11 @@ class TestEndToEnd(ProjectCase):
         self.write("ledgers/DATA_PROVENANCE.csv", "dataset_id,name,source_url,version_or_access_date,license,path,sha256,size_bytes,notes\n"
                    f"D1,plots,https://example.org/plots,2026-11-14,CC-BY-4.0,data/raw/d1/plots.csv,{rosctl.sha256_file(f)},{f.stat().st_size},\n")
         self.write("data/DATA_CARD.md", "# Data card\n\n" + PROSE * 9)
+        self.write("data/SCHEMA.csv", "file,column,type,unit,min,max,date_format,coded_numeric,notes\n"
+                   "data/raw/d1/plots.csv,site,categorical,,,,,no,\n"
+                   "data/raw/d1/plots.csv,x,continuous,dS/m,0,10,,,\n"
+                   "data/raw/d1/plots.csv,y,continuous,t/ha,-20,60,,,\n")
+        self.write("requirements.txt", "# standard library only; no third-party packages\n")
 
     def s4_analysis(self):
         self.write("analysis/model.py", ANALYSIS)
@@ -167,8 +178,8 @@ class TestEndToEnd(ProjectCase):
     def s6_figures(self):
         self.write("analysis/fig1.py", FIGURE)
         self.run_logged("analysis/fig1.py")
-        self.write("ledgers/FIGURE_MANIFEST.csv", "figure_file,script,data_inputs,message,colorblind_safe,dpi\n"
-                   "manuscript/figures/fig1_cv_gap.svg,analysis/fig1.py,results/metrics.json,validation gap,yes,\n")
+        self.write("ledgers/FIGURE_MANIFEST.csv", "figure_file,script,data_inputs,message,colorblind_safe,dpi,error_bars\n"
+                   "manuscript/figures/fig1_cv_gap.svg,analysis/fig1.py,results/metrics.json,validation gap,yes,,none\n")
 
     def s7_manuscript(self):
         m = json.loads((self.proj / "results/metrics.json").read_text())
@@ -184,10 +195,11 @@ class TestEndToEnd(ProjectCase):
             Ordinary least squares with leave-site-out and random five-fold validation, seed `20261114`.
             ## 3. Results
             Leave-site-out RMSE was {vals['group_cv_rmse']} versus {vals['random_cv_rmse']}, t(4) = {vals['t']}, p = {vals['p']}.
+            We evaluated H1 with the pre-registered paired test.
             ## 4. Discussion
             The gap is consistent with prior reports [@work01].
             ### 4.1 Limitations
-            Synthetic data only.
+            {PROSE * 5}
             ## 5. Conclusion
             Validation design matters.
             ## Data Availability
@@ -195,7 +207,7 @@ class TestEndToEnd(ProjectCase):
             ## Code Availability
             All scripts are in analysis/.
             ## Declaration of Generative AI Use
-            An AI agent drafted this text; the authors verified it.
+            Claude Code drafted this text; the authors verified it.
             ## References
             """)
         self.write("manuscript/manuscript.md", text)
@@ -204,12 +216,16 @@ class TestEndToEnd(ProjectCase):
         self.write("ledgers/CLAIM_SUPPORT.csv", "claim_id,manuscript_location,claim_text,citekey,evidence_location,evidence_quote,support_level,checked_by\n"
                    'c1,Intro,bias,work00,p. 2,"random splits were optimistic",supports,agent\n'
                    'c2,Discussion,gap,work01,p. 5,"spatial gap observed",supports,agent\n')
-        self.write("literature/text/work00.txt", "We found that random splits were optimistic for clustered plots.")
+        self.write("literature/text/work00.txt", "ACCESS: full-text\nWe found that random splits were optimistic for clustered plots.")
+        self.write("literature/text/work01.txt", "ACCESS: abstract-only\nA spatial gap observed across regions.")
+        self.write("ledgers/AI_USAGE_LOG.csv", "timestamp_utc,tool,model,model_version,purpose,prompt_ref,output_ref,notes\n"
+                   "2026-11-14T00:00:00Z,Claude Code,claude-opus-5-5,2026-11,drafting manuscript,prompts/p1.md,manuscript/manuscript.md,\n")
         return vals
 
     def s8_review(self):
         for role in rosctl.REVIEW_ROLES:
-            self.write(f"review/REVIEW_{role}_v1.md", f"# {role} review\n\n" + PROSE * 8)
+            who = "human: owner" if role == "editor" else "gemini-3-pro"
+            self.write(f"review/REVIEW_{role}_v1.md", f"# {role} review\nReviewer: {who}\n\n" + PROSE * 8)
         self.write("review/Q1_SCORECARD.csv", "dimension,score,evidence,reviewer\n" +
                    "".join(f"{d},4,see REVIEW files,reviewer-{d[:3]}\n" for d in rosctl.RUBRIC_DIMENSIONS))
         self.write("review/ISSUES.csv", "issue_id,reviewer,severity,location,issue,action,status,resolution_note\n"
@@ -221,6 +237,7 @@ class TestEndToEnd(ProjectCase):
                    "- [x] owner verified quartile on SCImago and recorded the source\n- [x] all statements present\n")
         self.write("submission/JOURNAL_CHECK.csv", "journal,publisher,issn,quartile,quartile_source,checked_date,scope_fit,apc_or_route,ai_policy_url,owner_verified\n"
                    "Journal X,Pub,0000-0000,Q1,SJR 2025,2026-11-14,yes,subscription,https://example.org,yes\n")
+        self.write("submission/GUIDE_FOR_AUTHORS.txt", "Guide for authors downloaded by the owner. " * 40)
 
     # ---------------------------------------------------------------- the test
     def test_full_pipeline_s0_to_s10_then_fault_injection(self):
@@ -237,7 +254,8 @@ class TestEndToEnd(ProjectCase):
         self.assertFalse(any("unverifiable" in w and "work00" in w for w in rosctl.check_citations(self.proj).warnings))
         self.s8_review(); self.approve("S8")
         self.s9_submission(); self.approve("S9")
-        self.write("review/RESPONSE_TO_REVIEWERS.md", "**Comment R1.1:** add uncertainty\n**Response:** Added; see Results.\n\n" + PROSE * 3)
+        self.write("review/RESPONSE_TO_REVIEWERS.md", "**Comment R1.1:** add uncertainty\n**Response:** Added; see Results.\n"
+                   "**Change:** Results now state \"Leave-site-out RMSE was\" with the paired test.\n\n" + PROSE * 3)
         self.assert_gate("S10")
         code, out = quiet(rosctl.main, ["status"])
         self.assertIn("Current stage: DONE", out)
@@ -263,6 +281,26 @@ class TestEndToEnd(ProjectCase):
         self.assertEqual(code, 1); self.assertIn("changed after freeze", out)
         self.assertNotIn("S8", rosctl.load_state(self.proj)["passed"])  # later passes invalidated
         proto.write_text(frozen)
+        self.assert_gate("S7")
+
+        metrics = self.proj / "results/metrics.json"
+        honest = metrics.read_text()
+        metrics.write_text(honest.replace('"df": 4', '"df": 40'))  # hand-edited result file
+        code, out = self.gate("S7")
+        self.assertEqual(code, 1); self.assertIn("not produced by a logged", out)
+        metrics.write_text(honest)
+
+        ms.write_text(good.replace("Validation design matters.", "These results prove that validation design matters."))
+        code, out = self.gate("S7")  # misreporting language must fail the gate itself, not only the linter
+        self.assertEqual(code, 1); self.assertIn("[E41]", out)
+        ms.write_text(good)
+
+        locked = self.proj / "analysis/tests/test_splits.py"
+        original_test = locked.read_text()
+        locked.write_text("import unittest\n")  # test gutted after the lock
+        code, out = self.gate("S7")
+        self.assertEqual(code, 1); self.assertIn("after the S4 test lock", out)
+        locked.write_text(original_test)
         self.assert_gate("S7")
 
 

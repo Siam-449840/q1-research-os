@@ -27,3 +27,9 @@
 
 The owner reads the reviews, the scorecard and the diff of changes, and runs `rosctl approve S8`.
 Honest note for the owner: this is an internal standard; real reviewers may still disagree.
+
+## v1.2 requirements (enforced)
+
+Each `REVIEW_*.md` contains `Reviewer: <model id or human name>`; at least one reviewer must be a human or a
+model other than the drafting model in `AI_USAGE_LOG.csv` [E89,E135]. At `rosctl approve S8` the owner answers
+checklist items H10-H21 and personally verifies a random sample of 3 numbers and 3 claims [E133].

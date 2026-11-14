@@ -58,8 +58,9 @@ Q1 Research OS takes the opposite approach:
 - **`rosctl`**: init, proposal linter, cumulative stage gates, human-only approvals, logged runs,
   data hashing, and verifiers: registry-checked references (exists / title matches / not retracted),
   exact-cell number provenance, machine-checked quotes, p-value recomputation, train/test leakage
-  audit, independent re-computation and independent review. Stdlib only; 50 tests incl. a full
-  S0→S10 end-to-end run with fault injection.
+  audit, independent re-computation and independent review, plus (v1.2) language, code-hygiene,
+  data-schema, output-provenance, dependency, prompt-injection and reviewer-diversity checks. Stdlib only;
+  81 tests incl. a full S0→S10 end-to-end run with 6 fault injections; 25/25 mutants killed.
 - **A research constitution** (`AGENTS.md` = `CLAUDE.md` = `GEMINI.md`) with 13 absolute rules
   (no fabrication, stop on failure, traceable numbers, independent re-computation, verified
   citations, frozen protocol, read-only raw data, legal access, human gates, no external actions,
@@ -67,6 +68,9 @@ Q1 Research OS takes the opposite approach:
 - **Five agent skills**: `q1-pipeline` (orchestrator + 11 stage playbooks), `q1-proposal`,
   `q1-literature`, `q1-verify`, `q1-review`.
 - **A Q1 rubric** (15 dimensions + desk-reject simulation) that the review panel must clear.
+- **A 136-error control matrix** ([docs/ERROR_CONTROL_MATRIX.md](docs/ERROR_CONTROL_MATRIX.md)): every known
+  failure mode of AI-assisted research mapped to fail-closed gates (58 controls) and mandatory human checks
+  (26 checklist items enforced by `rosctl approve`), with an honest residual-risk rating.
 - **Domain packs**: `agriculture` (13 subfields: datasets, methods, baselines, pitfalls, reporting
   standards, venues), `software-engineering`, and a `_template` for any discipline.
 - **A proposal template, a proposal-writing guide and a worked example** that passes the linter.
@@ -183,10 +187,13 @@ What you should check before each approval: [docs/PLAYBOOK.md §4](docs/PLAYBOOK
 | `rosctl status` | stage progress and pending approvals |
 | `rosctl gate [STAGE]` | run cumulative checks up to STAGE (default: current); record a pass or clear a stale one |
 | `rosctl approve STAGE [--note]` | **human only**, S1/S2/S8/S9; needs an interactive terminal and a typed phrase; refused inside AI-agent sessions (environment markers, process ancestry); S2 freezes the protocol |
+| `rosctl verify-deps` | **network**: every declared PyPI/CRAN package must exist and be >= 90 days old (anti-slopsquatting); writes `ledgers/DEPENDENCY_VERIFICATION.csv` |
+| `rosctl relock-tests --reason "..."` | **human only**: accept changed tests/evaluation code after S4 (agents are refused) |
+| `rosctl ack-injection <file>` | **human only**: acknowledge an inspected source flagged for prompt injection |
 | `rosctl verify-refs` | **network**: resolve every `refs.bib` DOI at doi.org (Crossref, DataCite, …), compare titles, check OpenAlex retraction status, check URL-only entries; writes `ledgers/REFERENCE_VERIFICATION.csv` |
 | `rosctl run -- <cmd …>` | run a command and append it to `ledgers/RUN_LOG.csv` (time, commit, exit code, duration) |
 | `rosctl hash <paths…>` | print `path,sha256,size` rows for `DATA_PROVENANCE.csv` |
-| `rosctl check refs\|numbers\|citations\|stats\|splits\|recompute\|review\|manuscript` | run one verifier on its own |
+| `rosctl check <name>` | run one verifier: refs, numbers, citations, stats, splits, recompute, review, manuscript, language, code, schema, outputs, environment, ai-log, cleaning, quotes, metric-split, reviewers, permissions |
 | `rosctl doctor` | check Python, git, uv and optional tools, with install hints |
 
 Exit codes: `0` pass, `1` checks failed, `2` usage error, `3` approval refused (non-interactive).
@@ -209,6 +216,11 @@ allows for rounding, and labels errors that flip significance as DECISION ERRORs
 | `ledgers/SEARCH_LOG.csv` | date, source, query, filters, hits, screened, included, notes | S1 |
 | `ledgers/REFERENCE_VERIFICATION.csv` | citekey, doi, url, status, title_similarity, registered_title, registered_year, bib_year, is_retracted, source, checked_at | S1, S7 (written by `rosctl verify-refs`) |
 | `results/splits/*.csv` | fold, split, group | S4 (written by your CV code) |
+| `data/SCHEMA.csv` | file, column, type, unit, min, max, date_format, coded_numeric, notes | S3 |
+| `ledgers/DATA_CLEANING_LOG.csv` | step, input_file, output_file, rule, rows_in, rows_out, script, notes | S3-S4 |
+| `ledgers/OUTPUT_MANIFEST.jsonl` | per successful run: outputs (sha256) and analysis inputs (sha256) | S4+ (automatic) |
+| `ledgers/DEPENDENCY_VERIFICATION.csv` | package, ecosystem, status, first_release, latest_version, checked_at | S4 (`verify-deps`) |
+| `ledgers/AI_USAGE_LOG.csv` | timestamp_utc, tool, model, model_version, purpose, prompt_ref, output_ref, notes | all |
 | `literature/CLOSEST_WORK.csv` | citekey, title, year, doi_or_url, what_they_did, data, method, key_result, limitation, overlap_with_us, evidence_location | S1 |
 | `ledgers/DATA_PROVENANCE.csv` | dataset_id, name, source_url, version_or_access_date, license, path, sha256, size_bytes, notes | S3 |
 | `ledgers/RUN_LOG.csv` | timestamp_utc, command, git_commit, exit_code, duration_s, notes | S3–S10 (automatic) |
@@ -269,8 +281,8 @@ agricultural AI/software. `software-engineering` covers empirical SE and researc
 
 | Agent | Rules file it reads | Skills folder | Notes |
 |---|---|---|---|
-| Claude Code | `CLAUDE.md` | `.claude/skills/` | optional MCP: `cp .mcp.json.example .mcp.json` |
-| Antigravity | `AGENTS.md` / `GEMINI.md` | `.agents/skills/` (and `.agent/skills/`) | add MCP servers in its settings using the same commands |
+| Claude Code | `CLAUDE.md` | `.claude/skills/` | project `.claude/settings.json` denies edits to raw data, `.ros/` and rosctl ledgers, and denies `rosctl approve`; installs ask first. Optional MCP: `cp .mcp.json.example .mcp.json` |
+| Antigravity | `AGENTS.md` / `GEMINI.md` | `.agents/skills/` (and `.agent/skills/`) | runtime-verified with the `agy` CLI (rules loaded, 5 skills discovered and read); global plugin rules also load, the project constitution wins on conflict |
 | Gemini CLI, Codex, Cursor, others | `AGENTS.md` / `GEMINI.md` | point the agent at `.agents/skills/q1-pipeline/SKILL.md` | gates still enforced by `rosctl` |
 
 Because all state lives in files, you can draft in one agent and review in another; this is
@@ -313,6 +325,9 @@ independent reviewers.
   come from a logged `rosctl run`, re-computation and review must come from fresh sessions, and the
   reproducibility reviewer re-runs the pipeline from a clean clone. Approval checks are defence in
   depth, not proof of humanity.
+- **Local state can be forged by a process with shell access.** `.ros/state.json` and the rosctl-written
+  ledgers are protected by agent permissions (Claude Code deny rules) and the constitution, not by
+  cryptography. 31 of the 136 errors keep a high residual risk (mostly semantic judgement); see the matrix.
 - **Third-party tools change.** Pinned versions reduce, but do not remove, breakage risk.
 - **You remain the author.** Accountability, interpretation and submission are yours.
 

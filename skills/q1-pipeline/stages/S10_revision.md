@@ -17,3 +17,8 @@
 5. Re-run `rosctl gate S7` and a fresh `q1-review` on the changed parts.
 6. Produce a tracked-changes version for the journal when the owner asks.
 7. `rosctl gate S10`. The owner submits the revision personally.
+
+## v1.2 requirement (enforced)
+
+Every `**Change:**` line quotes the new manuscript text; `rosctl` checks that the quote exists in the
+manuscript [E127].

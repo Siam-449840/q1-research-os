@@ -24,3 +24,8 @@ script from `results/`.
 4. Draft a self-contained caption for each (what, where, when, n, what the error bars mean).
 5. Optional: K-Dense `scientific-visualization` / `matplotlib` / `seaborn` skills for styling.
 6. `rosctl gate S6`.
+
+## v1.2 requirement
+
+`FIGURE_MANIFEST.csv` has an `error_bars` column (`none|SD|SE|CI95|IQR|range|PI95`) [E44,E126]; figures not
+produced by a logged run (including copied third-party images) block [E131].

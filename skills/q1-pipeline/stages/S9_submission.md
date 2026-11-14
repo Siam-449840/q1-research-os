@@ -25,3 +25,9 @@
 
 The owner reviews everything, runs `rosctl approve S9`, and **submits personally**. The agent never
 submits, never creates journal accounts, never emails editors.
+
+## v1.2 requirements (enforced)
+
+Save the current guide for authors of the target journal as `submission/GUIDE_FOR_AUTHORS.(pdf|html|txt)`
+[E72]. At `rosctl approve S9` the owner confirms H22-H26 (administrative statements true, journal facts
+verified, similarity check, no confidential material sent to forbidden AI services, checker outputs reviewed).

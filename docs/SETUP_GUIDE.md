@@ -132,6 +132,11 @@ python3 -m unittest discover -s tests                                      # fro
 | `approve` says "running inside an AI agent session" | you ran it from the agent's shell or a terminal it spawned | open your own Terminal app and run it there |
 | Gate: "not verified against a registry" | `refs.bib` changed since the last verification | `rosctl verify-refs` (needs internet), then fix any `not_found` / `title_mismatch` / `retracted` entry |
 | Gate: "locator does not resolve uniquely" | provenance row points at nothing or at several rows | use `keycol=keyval:column`, `$.json.path` or `line:N` |
+| Gate: "not produced by a logged `rosctl run`" | a results/figure file was written by hand, copied, or edited | re-generate it with `rosctl run -- <script>` |
+| Gate: "STALE" | the script changed after the output was produced | re-run the script via `rosctl run` |
+| Gate: "dependency ... not verified" | new package declared | `rosctl verify-deps`; never install unknown or brand-new packages |
+| Gate: "possible prompt injection" | a saved paper/web text contains instructions to the AI | read it yourself, then `rosctl ack-injection <file>` in your own terminal |
+| `approve` asks many yes/no questions | mandatory human checklist (core/CONTROLS.csv) | answer `yes` only for what you personally verified |
 | Gate: "no split manifest" | CV code does not export its folds | write `results/splits/<design>.csv` (fold,split,group) or justify `NOT_APPLICABLE.md` |
 | Gate fails "PROTOCOL.md changed after freeze" | protocol edited above `## Deviations` | `git checkout` the frozen text; record changes under Deviations |
 | Gate fails "sha256 mismatch" | a raw data file changed | restore it from the source; derived data belongs in `data/processed/` |
