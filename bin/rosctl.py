@@ -1028,7 +1028,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     log = root / "ledgers/RUN_LOG.csv"
     new = not log.exists() or log.stat().st_size == 0
     with log.open("a", newline="", encoding="utf-8") as fh:
-        w = csv.writer(fh)
+        w = csv.writer(fh, lineterminator="\n")
         if new:
             w.writerow(["timestamp_utc", "command", "git_commit", "exit_code", "duration_s", "notes"])
         w.writerow([now_utc(), " ".join(cmd), git_commit(root), code, f"{time.time() - start:.1f}", args.note or ""])
@@ -1039,7 +1039,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def cmd_hash(args: argparse.Namespace) -> int:
     root = find_root(Path.cwd())
-    w = csv.writer(sys.stdout)
+    w = csv.writer(sys.stdout, lineterminator="\n")
     for p in args.paths:
         path = Path(p).resolve()
         files = [path] if path.is_file() else sorted(q for q in path.rglob("*") if q.is_file())

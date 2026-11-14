@@ -123,6 +123,7 @@ def verify_doi(key: str, fields: Dict[str, str], fetch: Fetch) -> Dict[str, str]
     except ValueError:
         return {**row, "status": "error_bad_response"}
     reg_title = meta.get("title") if isinstance(meta.get("title"), str) else " ".join(meta.get("title") or [])
+    reg_title = " ".join(re.sub(r"<[^>]+>", "", reg_title).split())  # Crossref titles may carry JATS markup
     sim = title_similarity(fields.get("title", ""), reg_title) if fields.get("title") else 0.0
     retracted = _retracted(doi, fetch)
     if retracted == "yes" or norm_title(reg_title).startswith("retracted"):
@@ -161,7 +162,7 @@ def write_ledger(root: Path, rows: List[Dict[str, str]]) -> Path:
     path = root / LEDGER
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=COLUMNS)
+        w = csv.DictWriter(fh, fieldnames=COLUMNS, lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
     return path

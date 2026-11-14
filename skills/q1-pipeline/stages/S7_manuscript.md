@@ -32,10 +32,16 @@ Keywords / Highlights → statements (data, code, AI use, CRediT, competing inte
    files, never from memory.
 3. After each chunk:
    - add rows to `ledgers/NUMBER_PROVENANCE.csv` (`number_id, value, manuscript_location,
-     results_file, locator, script`), value written exactly as in the text (e.g. `0.82`, `12.5%`);
+     results_file, locator, script`), value written exactly as in the text (e.g. `0.82`, `12.5%`).
+     The **locator is mandatory** and must point at exactly one place: `model=rf:rmse` (CSV row whose
+     `model` is `rf`, column `rmse`), `rmse` (CSV with one data row), `$.h1.ci.0` (JSON path), or
+     `line:12` (text file). The text value must be a correct rounding of that exact cell;
    - add rows to `ledgers/CLAIM_SUPPORT.csv` for each citation (`evidence_location`, short
      `evidence_quote`, `support_level` = `supports | partially_supports | contrasts`);
-   - run `rosctl check numbers` and `rosctl check citations`; fix everything.
+   - run `rosctl check numbers`, `rosctl check citations` and `rosctl check stats`; fix everything.
+     Report test results in APA style (`t(23) = 2.45, p = .021`, `F(2, 57) = 4.10, p = .022`,
+     `χ2(1) = 3.84, p = .050`) so `check stats` can recompute each p-value from the statistic and
+     degrees of freedom; a DECISION ERROR means the reported significance is wrong.
 4. Language: clear, precise, active voice where natural, no hype words, consistent terminology, tense
    conventions (past for what you did, present for established facts). Optional: claude-scholar
    `writing-anti-ai` and K-Dense `scientific-writing` (its `audit_claims.py`, `check_consistency.py`,

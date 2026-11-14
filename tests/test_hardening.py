@@ -158,6 +158,48 @@ class TestQuoteVerification(ProjectCase):
         self.assertFalse(any("misquotation" in b for b in rosctl.check_citations(self.proj).blockers))
 
 
+class TestCsvOutput(ProjectCase):
+    def test_hash_rows_have_unix_newlines_so_pasting_into_ledgers_adds_no_phantom_row(self):
+        import contextlib
+        import io
+        self.write("data/raw/d/x.csv", "a\n1\n")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rosctl.main(["hash", "data/raw/d/x.csv"])
+        self.assertNotIn("\r", buf.getvalue())
+        self.write("ledgers/DATA_PROVENANCE.csv", "dataset_id,name,source_url,version_or_access_date,license,path,sha256,size_bytes,notes\n"
+                   + "D1,x,https://e.org,2026,CC0," + buf.getvalue().strip() + ",\n")
+        self.assertEqual(len(rosctl.read_csv(self.proj / "ledgers/DATA_PROVENANCE.csv")), 1)
+
+
+class TestDomainPacks(unittest.TestCase):
+    PACK_FILES = ["DOMAIN.md", "DATASETS.md", "METHODS.md", "PITFALLS.md", "REPORTING.md", "JOURNALS.md"]
+
+    def test_every_domain_pack_has_all_six_files_so_agents_never_hit_a_missing_playbook(self):
+        packs = [p for p in (rosctl.FRAMEWORK_ROOT / "domains").iterdir() if p.is_dir()]
+        self.assertGreaterEqual(len(packs), 3)
+        for pack in packs:
+            for name in self.PACK_FILES:
+                self.assertTrue((pack / name).is_file() and (pack / name).stat().st_size > 100, f"{pack.name}/{name}")
+
+    def test_pipeline_is_discipline_agnostic_with_blank_template_pack(self):
+        import contextlib
+        import io
+        import os
+        import tempfile
+        from test_rosctl import EXAMPLE
+        old = os.getcwd()
+        with tempfile.TemporaryDirectory() as d, contextlib.redirect_stdout(io.StringIO()):
+            proj = Path(d) / "ecology-paper"
+            self.assertEqual(rosctl.main(["init", str(proj), "--domain", "_template"]), 0)
+            (proj / "PROPOSAL.md").write_text(EXAMPLE.read_text().replace("agriculture", "_template"))
+            os.chdir(proj)
+            try:
+                self.assertEqual(rosctl.main(["gate", "S0"]), 0)
+            finally:
+                os.chdir(old)
+
+
 class TestApprovalHardening(unittest.TestCase):
     def test_agent_environment_and_agent_ancestry_are_refused(self):
         self.assertIn("environment marker", rosctl.approval_refusal({"CLAUDECODE": "1"}, [], True))

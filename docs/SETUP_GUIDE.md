@@ -129,6 +129,10 @@ python3 -m unittest discover -s tests                                      # fro
 |---|---|---|
 | `rosctl: command not found` | `~/.local/bin` not on PATH | add it to your shell profile, open a new terminal |
 | `rosctl approve` says REFUSED | not an interactive terminal (an agent tried to approve) | run it yourself in a normal terminal; this is by design |
+| `approve` says "running inside an AI agent session" | you ran it from the agent's shell or a terminal it spawned | open your own Terminal app and run it there |
+| Gate: "not verified against a registry" | `refs.bib` changed since the last verification | `rosctl verify-refs` (needs internet), then fix any `not_found` / `title_mismatch` / `retracted` entry |
+| Gate: "locator does not resolve uniquely" | provenance row points at nothing or at several rows | use `keycol=keyval:column`, `$.json.path` or `line:N` |
+| Gate: "no split manifest" | CV code does not export its folds | write `results/splits/<design>.csv` (fold,split,group) or justify `NOT_APPLICABLE.md` |
 | Gate fails "PROTOCOL.md changed after freeze" | protocol edited above `## Deviations` | `git checkout` the frozen text; record changes under Deviations |
 | Gate fails "sha256 mismatch" | a raw data file changed | restore it from the source; derived data belongs in `data/processed/` |
 | `check numbers` flags software versions or seeds | they were written as plain text | put them in `code spans` |

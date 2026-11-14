@@ -30,7 +30,13 @@ and regenerates every result with one command.
 7. Determinism check: re-run the primary model once; results must be identical (or within a stated
    tolerance for GPU non-determinism). Record in `ledgers/DECISION_LOG.csv`.
 8. Any protocol change → append to `## Deviations` with reason BEFORE running it.
-9. `rosctl gate S4`.
+9. **Split manifest (leakage audit).** The code that builds cross-validation folds must also write
+   `results/splits/<design>.csv` with columns `fold,split,group` (one row per fold × split × group;
+   `split` is `train`, `test` or `val`; `group` is the unit that must not leak: site, region, year,
+   farm, genotype family ...). `rosctl` blocks the gate if any group appears in both train and test of
+   the same fold. For designs without folds (e.g. causal panel models), write
+   `results/splits/NOT_APPLICABLE.md` (≥ 40 words) explaining how independence is ensured instead.
+10. `rosctl gate S4`.
 
 ## Domain specifics
 

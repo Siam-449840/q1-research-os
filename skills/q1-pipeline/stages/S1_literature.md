@@ -21,9 +21,16 @@ evidence) what is new. This stage decides whether the project should continue.
 5. **Closest work table.** Fill `literature/CLOSEST_WORK.csv` with the ≥10 closest works: what they did,
    data, method, key result, limitation, `overlap_with_us` (`none|partial|direct`), and
    `evidence_location` (page/section you actually read).
-6. **Verify every reference.** For each work: resolve the DOI (Crossref/OpenAlex), get BibTeX from
-   `https://doi.org/<DOI>` with `Accept: application/x-bibtex`, add it to `refs/refs.bib` with a
-   consistent citekey (e.g. `smith2023yield`). No DOI → use the stable URL. Never type BibTeX from memory.
+6. **Verify every reference.** For each work: get BibTeX from `https://doi.org/<DOI>` with
+   `Accept: application/x-bibtex`, add it to `refs/refs.bib` with a consistent citekey (e.g.
+   `smith2023yield`). No DOI → use the stable URL. Never type BibTeX from memory. Then run
+   **`rosctl verify-refs`**: it resolves every DOI at doi.org, compares the registered title with your
+   bib title, checks OpenAlex for retractions, and writes `ledgers/REFERENCE_VERIFICATION.csv`. Any
+   `not_found`, `title_mismatch` or `retracted` entry blocks the gate: fix or remove it, never edit the
+   ledger by hand. Re-run it whenever `refs.bib` changes.
+6b. **Keep source text for quotes.** When you read an open-access paper, save its plain text as
+   `literature/text/<citekey>.txt` (e.g. `paper-search read ...`, or PDF-to-text). `rosctl` then checks
+   that every `evidence_quote` in `CLAIM_SUPPORT.csv` really occurs in that text.
 7. **Adversarial novelty check.** Ask, and answer with evidence:
    - "What paper would a hostile reviewer cite to say this is not new?"
    - Has the same question been answered with different data? The same data with a different method?

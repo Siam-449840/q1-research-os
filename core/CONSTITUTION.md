@@ -21,12 +21,14 @@ untraceable or overclaimed.
    the root cause. Never mock, simulate or "estimate" what the output would have been.
 3. **Every number is traceable.** Every number in `manuscript/` has a row in
    `ledgers/NUMBER_PROVENANCE.csv` pointing to a file in `results/` (or a config/lock file) produced by a
-   script in `analysis/`. Write software versions, seeds and identifiers inside `code spans`.
+   script in `analysis/`, with a `locator` naming the exact cell (`model=rf:rmse`, `$.json.path`,
+   `line:N`). Write software versions, seeds and identifiers inside `code spans`.
 4. **Every key result is re-computed independently** (different library, or a fresh agent session
    coding from `protocol/PROTOCOL.md` alone) and logged in `ledgers/RECOMPUTATION_AUDIT.csv`.
 5. **Every citation is real and supports the claim.** Cite only entries in `refs/refs.bib` that have a
    DOI or URL. A resolving DOI proves only that the paper exists: before citing it for a claim, read the
    relevant passage and record it in `ledgers/CLAIM_SUPPORT.csv` (location + short quote + support level).
+   Run `rosctl verify-refs` after every change to `refs.bib`; never hand-edit its ledger.
 6. **Explicit source binding while drafting.** Every scientific claim in a draft carries its source:
    `[@citekey]` for literature or `[Source: results/<file>]` for our results.
 7. **The protocol is frozen before confirmatory analysis.** After the owner approves S2, never edit

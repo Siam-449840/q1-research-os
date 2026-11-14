@@ -56,7 +56,10 @@ Q1 Research OS takes the opposite approach:
 ## 2. What you get
 
 - **`rosctl`**: init, proposal linter, cumulative stage gates, human-only approvals, logged runs,
-  data hashing, and verifiers for numbers, citations, re-computation and review. Stdlib only, tested.
+  data hashing, and verifiers: registry-checked references (exists / title matches / not retracted),
+  exact-cell number provenance, machine-checked quotes, p-value recomputation, train/test leakage
+  audit, independent re-computation and independent review. Stdlib only; 50 tests incl. a full
+  S0→S10 end-to-end run with fault injection.
 - **A research constitution** (`AGENTS.md` = `CLAUDE.md` = `GEMINI.md`) with 13 absolute rules
   (no fabrication, stop on failure, traceable numbers, independent re-computation, verified
   citations, frozen protocol, read-only raw data, legal access, human gates, no external actions,
@@ -157,14 +160,14 @@ weak → strong examples, and a pre-flight checklist. See the worked example in
 | Stage | Agent does | `rosctl gate` blocks unless… | Human gate |
 |---|---|---|---|
 | **S0** Proposal | lint + PI-style critique | proposal has no lint blockers | |
-| **S1** Literature & novelty | search protocol, logged multi-source search, snowballing, closest-work table, verified BibTeX, novelty verdict | `SEARCH_PROTOCOL.md`; ≥10 logged queries over ≥3 sources; ≥10 closest works classified none/partial/direct and present in `refs.bib`; verdict ≥150 words; every bib entry has DOI/URL | **yes** |
+| **S1** Literature & novelty | search protocol, logged multi-source search, snowballing, closest-work table, verified BibTeX, novelty verdict | `SEARCH_PROTOCOL.md`; ≥10 logged queries over ≥3 sources; ≥10 closest works classified none/partial/direct and present in `refs.bib`; verdict ≥150 words; **every bib entry registry-verified** by `rosctl verify-refs` (DOI resolves, title matches ≥0.85, not retracted) | **yes** |
 | **S2** Protocol | pre-registered plan with decision rules | all protocol sections; hypotheses with decision rules; after approval, SHA-256 of the frozen part must never change | **yes** (freezes) |
 | **S3** Data | download scripts, hashes, licenses, data card, sanity audit | `DATA_CARD.md`; every provenance row has URL, license, path under `data/raw/` and matching SHA-256 | |
-| **S4** Analysis | tested, logged, leakage-aware pipeline + robustness | a successful logged run and a passing logged test run after the freeze; `analysis/tests/test_*`; non-empty `results/`; last run not failed | |
+| **S4** Analysis | tested, logged, leakage-aware pipeline + robustness | a successful logged run and a passing logged test run after the freeze; `analysis/tests/test_*`; non-empty `results/`; last run not failed; **split manifest** `results/splits/*.csv` shows no group in train and test of the same fold | |
 | **S5** Re-computation | second, independent computation of key statistics | every protocol hypothesis covered; methods differ; values within tolerance | |
 | **S6** Figures | one script per figure | every figure in the manifest with an existing script, colour-blind safe, raster ≥300 dpi | |
-| **S7** Manuscript | evidence-bound draft in the golden order | required sections (incl. limitations, data/code availability, AI declaration); no placeholders; **every number** provenanced and found in its results file; **every citation** in `refs.bib` with a claim-support row | |
-| **S8** Q1 review | independent reviewer panel + fix loop | all 15 rubric dimensions scored ≥4 with evidence; no open major issue | **yes** |
+| **S7** Manuscript | evidence-bound draft in the golden order | required sections (incl. limitations, data/code availability, AI declaration); no placeholders; **every number** a correct rounding of the exact cell its locator names; **every citation** verified, with a claim-support row whose quote is checked against `literature/text/` when available; **every APA-style test result** recomputed (t, F, χ², r, z) | |
+| **S8** Q1 review | independent reviewer panel + fix loop | four reviewer reports (editor, methods, domain, reproducibility); all 15 rubric dimensions ≥4 with evidence and a non-self reviewer; no open major issue | **yes** |
 | **S9** Submission | cover letter, checklist, archive | cover letter; checklist fully ticked; journal quartile verified by the owner with source and date | **yes** (owner submits) |
 | **S10** Revision | response to reviewers, new analyses | every reviewer comment has a response | |
 
@@ -179,24 +182,33 @@ What you should check before each approval: [docs/PLAYBOOK.md §4](docs/PLAYBOOK
 | `rosctl lint-proposal [file]` | check the proposal; prints blockers, warnings and a 0–100 readiness score |
 | `rosctl status` | stage progress and pending approvals |
 | `rosctl gate [STAGE]` | run cumulative checks up to STAGE (default: current); record a pass or clear a stale one |
-| `rosctl approve STAGE [--note]` | **human only**, S1/S2/S8/S9; needs an interactive terminal and a typed phrase; S2 freezes the protocol |
+| `rosctl approve STAGE [--note]` | **human only**, S1/S2/S8/S9; needs an interactive terminal and a typed phrase; refused inside AI-agent sessions (environment markers, process ancestry); S2 freezes the protocol |
+| `rosctl verify-refs` | **network**: resolve every `refs.bib` DOI at doi.org (Crossref, DataCite, …), compare titles, check OpenAlex retraction status, check URL-only entries; writes `ledgers/REFERENCE_VERIFICATION.csv` |
 | `rosctl run -- <cmd …>` | run a command and append it to `ledgers/RUN_LOG.csv` (time, commit, exit code, duration) |
 | `rosctl hash <paths…>` | print `path,sha256,size` rows for `DATA_PROVENANCE.csv` |
-| `rosctl check numbers\|citations\|recompute\|review\|manuscript` | run one verifier on its own |
+| `rosctl check refs\|numbers\|citations\|stats\|splits\|recompute\|review\|manuscript` | run one verifier on its own |
 | `rosctl doctor` | check Python, git, uv and optional tools, with install hints |
 
 Exit codes: `0` pass, `1` checks failed, `2` usage error, `3` approval refused (non-interactive).
 
 How `check numbers` works: it extracts decimals, percentages and integers > 10 from the manuscript
 (skipping years, the reference list, `code spans`, `[@cites]`, `[Source: …]`, URLs and
-figure/table/section labels), requires each to appear as a `value` in `NUMBER_PROVENANCE.csv`, and
-confirms that value appears in the referenced results file (allowing rounding, and fraction ↔ percent).
+figure/table/section labels) and requires each to appear as a `value` in `NUMBER_PROVENANCE.csv`.
+Each row's `locator` must resolve to exactly one place (`keycol=keyval:column` or `column` in CSV,
+`$.path.0` in JSON, `line:N` in text) and the value must be a correct rounding of that cell.
+
+How `check stats` works: it finds APA-style results (`t(23) = 2.45, p = .021`, `F(2, 57) = 4.10, p < .05`,
+`χ2(1) = 3.84, p = .05`, `r(40) = .31, p = .045`, `z = 1.96, p = .05`), recomputes p from the statistic
+and degrees of freedom (stdlib incomplete-beta/gamma; max error vs SciPy 8.5e-13 over 2,000 cases),
+allows for rounding, and labels errors that flip significance as DECISION ERRORs.
 
 ## 8. Ledgers: the audit trail
 
 | File | Columns | Filled in |
 |---|---|---|
 | `ledgers/SEARCH_LOG.csv` | date, source, query, filters, hits, screened, included, notes | S1 |
+| `ledgers/REFERENCE_VERIFICATION.csv` | citekey, doi, url, status, title_similarity, registered_title, registered_year, bib_year, is_retracted, source, checked_at | S1, S7 (written by `rosctl verify-refs`) |
+| `results/splits/*.csv` | fold, split, group | S4 (written by your CV code) |
 | `literature/CLOSEST_WORK.csv` | citekey, title, year, doi_or_url, what_they_did, data, method, key_result, limitation, overlap_with_us, evidence_location | S1 |
 | `ledgers/DATA_PROVENANCE.csv` | dataset_id, name, source_url, version_or_access_date, license, path, sha256, size_bytes, notes | S3 |
 | `ledgers/RUN_LOG.csv` | timestamp_utc, command, git_commit, exit_code, duration_s, notes | S3–S10 (automatic) |
@@ -292,9 +304,15 @@ independent reviewers.
   timing and reviewers remain outside anyone's control.
 - **Designed for computational and secondary-data research.** Experimental data collection, ethics
   approvals and fieldwork are out of scope (the protocol, provenance and writing parts still help).
-- **Heuristic checkers.** `check numbers` uses pattern matching; write numbers plainly and put
-  versions/IDs in code spans. A determined human can always bypass local tooling; the gates are
-  designed to stop *agents* from cutting corners, and to make honest work easy to audit.
+- **Heuristic checkers.** `check numbers` and `check stats` use pattern matching: numbers written as
+  words, or statistics in non-APA formats, are not caught. A quote is machine-checked only when the
+  source text is saved in `literature/text/`. Whether a cited passage *semantically* supports a claim
+  is judged by reviewers, not by code.
+- **Gates stop shortcuts, not determined fraud.** An agent could still fabricate a results file plus
+  matching ledgers, or name a second method that is not truly independent. Defences: every result must
+  come from a logged `rosctl run`, re-computation and review must come from fresh sessions, and the
+  reproducibility reviewer re-runs the pipeline from a clean clone. Approval checks are defence in
+  depth, not proof of humanity.
 - **Third-party tools change.** Pinned versions reduce, but do not remove, breakage risk.
 - **You remain the author.** Accountability, interpretation and submission are yours.
 

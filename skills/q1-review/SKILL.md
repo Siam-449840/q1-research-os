@@ -39,7 +39,8 @@ Do NOT give them PROPOSAL.md, chat history or the author's opinions.
 
 ## Output files
 
-- `review/REVIEW_<role>_v<N>.md`: full report per reviewer.
+- `review/REVIEW_<role>_v<N>.md` with role ∈ `editor`, `methods`, `domain`, `reproducibility`
+  (≥ 150 words each; the S8 gate requires all four).
 - `review/ISSUES.csv`: `issue_id, reviewer, severity (major|minor), location, issue, action,
   status (open|resolved|justified), resolution_note`.
 - `review/Q1_SCORECARD.csv`: editor consolidates one score (1–5) per rubric dimension with evidence.

@@ -42,7 +42,10 @@ Outputs `literature/snowball/snowball_results.csv` and an audit log. Screen resu
    Normalise the citekey (`firstauthorYEARkeyword`). Never write BibTeX from memory.
 3. Before citing for a specific claim: read the passage (open-access full text, or abstract if that is
    all that is legally available, and say so) and add a `ledgers/CLAIM_SUPPORT.csv` row.
-4. Batch checks: `bibvet refs/refs.bib` (metadata) and
+4. Registry check (mandatory, built in): `rosctl verify-refs` → `ledgers/REFERENCE_VERIFICATION.csv`.
+   Save the plain text of every open-access paper you quote as `literature/text/<citekey>.txt` so
+   quotes are machine-checked.
+5. Extra audits (optional): `bibvet refs/refs.bib` (metadata) and
    `academic-refchecker --paper manuscript/manuscript.md` (existence/hallucination audit). Install:
    `uv tool install academic-refchecker`; `uv tool install git+https://github.com/dipta007/bibvet`.
    Run `<tool> --help` first and use only the flags it prints.

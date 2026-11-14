@@ -5,6 +5,14 @@ reproduce the study and nobody (including you) can silently change the inputs.
 
 ## Steps
 
+0. **Discovery (only if the protocol's datasets are insufficient or unavailable).** Search, in order:
+   `.ros/domain/DATASETS.md`; official portals named there; research-data repositories with open
+   APIs (Zenodo `https://zenodo.org/api/records?q=...`, Harvard Dataverse
+   `https://dataverse.harvard.edu/api/search?q=...`, Figshare, Dryad, PANGAEA); and "data papers" in
+   journals such as Scientific Data or Earth System Science Data (via `q1-literature`). For each
+   candidate record: coverage, unit, license, size, version, and whether independent validation data
+   exist. Write candidates to `ledgers/DECISION_LOG.csv`; adding or replacing a dataset needs the
+   owner's approval (PROPOSAL §12) and a `## Deviations` entry.
 1. For each dataset in the protocol, write a download script in `analysis/` (e.g.
    `analysis/00_get_<dataset>.py`). Prefer official APIs and documented bulk endpoints. Respect rate
    limits and terms of use. Never scrape publisher or login-protected sites.

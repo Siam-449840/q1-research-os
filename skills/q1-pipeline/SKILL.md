@@ -29,14 +29,14 @@ until stage == DONE or the owner says stop
 | Stage | Playbook | Gate checks (summary) | Human gate |
 |---|---|---|---|
 | S0 | `stages/S0_proposal.md` | `rosctl lint-proposal` has no blockers | no |
-| S1 | `stages/S1_literature.md` | search protocol, ≥10 logged queries over ≥3 sources, ≥10 closest works, novelty verdict, bib entries have DOI/URL | **yes** |
+| S1 | `stages/S1_literature.md` | search protocol, ≥10 logged queries over ≥3 sources, ≥10 closest works, novelty verdict, every bib entry registry-verified (`rosctl verify-refs`: exists, title matches, not retracted) | **yes** |
 | S2 | `stages/S2_protocol.md` | protocol sections, hypotheses with decision rules | **yes** (freezes protocol) |
 | S3 | `stages/S3_data.md` | data card, provenance rows, SHA-256 of raw files match | no |
-| S4 | `stages/S4_analysis.md` | logged successful run + passing tests after freeze, results present, last run not failed | no |
+| S4 | `stages/S4_analysis.md` | logged successful run + passing tests after freeze, results present, last run not failed, split manifest shows no train/test group leakage | no |
 | S5 | `stages/S5_recompute.md` | every hypothesis re-computed by an independent method within tolerance | no |
 | S6 | `stages/S6_figures.md` | every figure has a script, ≥300 dpi, colour-blind safe | no |
-| S7 | `stages/S7_manuscript.md` | required sections, no placeholders, every number provenanced, every citation supported | no |
-| S8 | `stages/S8_review.md` | 15-dimension Q1 scorecard all ≥4 with evidence; no open major issue | **yes** |
+| S7 | `stages/S7_manuscript.md` | required sections, no placeholders, every number traced to an exact located cell, every citation verified with a (machine-checked) quote, every reported p-value recomputed | no |
+| S8 | `stages/S8_review.md` | four independent reviewer reports; 15-dimension scorecard all ≥4 with evidence; no open major issue | **yes** |
 | S9 | `stages/S9_submission.md` | cover letter, checklist fully ticked, journal verified by owner | **yes** |
 | S10 | `stages/S10_revision.md` | every reviewer comment has a response | no |
 

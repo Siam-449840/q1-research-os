@@ -9,7 +9,9 @@ route. If the two disagree, the paper is not ready.
 2. For each, choose an independent route (pick the strongest available):
    - **Fresh-session re-implementation (best):** a new agent session that has NOT seen `analysis/`
      receives only `protocol/PROTOCOL.md`, `data/DATA_CARD.md` and the processed inputs, and writes
-     `analysis/recompute/` from scratch.
+     `analysis/recompute/` from scratch. In Claude Code: launch a subagent (Task/Agent tool) whose prompt
+     forbids reading `analysis/` and `results/`; in Antigravity: open a new conversation with the same
+     restriction; or use the other agent product entirely.
    - **Different library:** e.g. `statsmodels` vs `scipy.stats` / `pingouin`; `scikit-learn` metric vs a
      hand-written NumPy metric; R vs Python for mixed models (`lme4` vs `statsmodels` MixedLM).
    - **Different algorithm:** analytic CI vs bootstrap CI; closed form vs numerical.

@@ -10,17 +10,22 @@ Verification is done by **scripts and second sources**, never by re-reading and 
 ## 1. Built-in checks (rosctl)
 
 ```bash
-rosctl check numbers      # every manuscript number ↔ NUMBER_PROVENANCE.csv ↔ value present in results file
-rosctl check citations    # every [@key] in refs.bib, has DOI/URL, and a CLAIM_SUPPORT row
+rosctl verify-refs        # NETWORK: resolve every DOI at doi.org, title match, OpenAlex retraction -> ledger
+rosctl check refs         # offline: every bib entry verified (not_found / title_mismatch / retracted block)
+rosctl check numbers      # every manuscript number ↔ NUMBER_PROVENANCE.csv ↔ exact located cell
+rosctl check citations    # every [@key] verified + CLAIM_SUPPORT row; quotes checked against literature/text/
+rosctl check stats        # recompute p from t/F/chi2/r/z + df; flags inconsistencies and decision errors
+rosctl check splits       # results/splits/*.csv: no group in train and test of the same fold
 rosctl check recompute    # RECOMPUTATION_AUDIT within tolerance; every hypothesis covered; methods differ
 rosctl check manuscript   # required sections, no placeholders, abstract length
-rosctl check review       # scorecard complete, all >= 4, no open major issue
+rosctl check review       # scorecard complete, all >= 4, four independent reviewer reports, no open major
 ```
 
 How `check numbers` decides: it extracts decimals, percentages and integers > 10 (except years and
 anything inside `code spans`, `[@...]`, `[Source: ...]`, URLs, or figure/table/section labels) and
-requires a matching `value` in `ledgers/NUMBER_PROVENANCE.csv`; then it confirms that value appears
-(allowing for rounding, and fraction ↔ percent) in the referenced results file.
+requires a matching `value` in `ledgers/NUMBER_PROVENANCE.csv`. Each row's `locator` must resolve to
+exactly one place (`keycol=keyval:column` or `column` in CSV, `$.path.0` in JSON, `line:N` in text),
+and the manuscript value must be a correct rounding of that exact cell (fraction ↔ percent allowed).
 
 ## 2. Re-computation comparison script (template)
 

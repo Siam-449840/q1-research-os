@@ -71,6 +71,8 @@ Before `rosctl approve S1`:
 - Any `direct` overlap? Then reframe, or justify precisely how you differ.
 - Does `NOVELTY_VERDICT.md` cite evidence (citekeys and locations), not just assert?
 - Was the search broad (≥ 3 sources, synonyms, snowballing, recent preprints)? See `SEARCH_LOG.csv`.
+- `ledgers/REFERENCE_VERIFICATION.csv` shows every reference `verified` against its registry (the gate
+  already blocks fabricated, mis-titled and retracted entries; skim the registered titles anyway).
 - Red flags: novelty based on "zero search hits"; references you cannot open; a verdict that never
   mentions a competitor.
 
@@ -91,6 +93,8 @@ Before `rosctl approve S2`:
 ### S4: Analysis
 - Plausibility check: are effect sizes and accuracies physically or biologically believable? Too good
   to be true usually means leakage.
+- `results/splits/` shows which sites/years/groups were held out in each fold; the gate blocks any
+  group that appears in both train and test.
 - `ledgers/RUN_LOG.csv` shows every run, including failures. Failures fixed at the root are good
   evidence of rigour; failures papered over are not allowed.
 
