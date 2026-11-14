@@ -1380,9 +1380,12 @@ def approval_refusal(env: Dict[str, str], ancestry: List[str], is_tty: bool) -> 
 def confirm_checklist(root: Path, stage: str) -> Optional[List[str]]:
     """Mandatory human-review items for this stage (core/CONTROLS.csv kind=human). Returns confirmed ids or None."""
     rows = [r for r in load_controls(root) if r.get("kind") == "human" and r.get("stage") == stage]
-    print(f"Human checklist for {stage} ({len(rows)} items). Answer 'yes' only if you personally verified it.")
+    print(f"Human checklist for {stage} ({len(rows)} items). Type the full word 'yes' only if you personally verified it.")
     for r in rows:
-        if input(f"  [{r['control_id']}] {r['description']} (yes/no): ").strip().lower() != "yes":
+        answer = input(f"  [{r['control_id']}] {r['description']} (type yes or no): ").strip().lower()
+        if answer != "yes":
+            hint = " (type the full word 'yes' to confirm)" if answer in {"y", "ye", "ok"} else ""
+            print(f"  [{r['control_id']}] not confirmed{hint}. Nothing was recorded; do the check, then run approve again.")
             return None
     return [r["control_id"] for r in rows]
 
