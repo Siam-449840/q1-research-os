@@ -16,6 +16,11 @@ Productivity release: the v1.2 gates required many hand-written ledger rows; hel
   sign in number matching, classification rule false positive narrowed, `rosctl cite-number` for validated
   manual choices, `provenance` also searches the frozen protocol. Report: docs/PILOT_2026-11.md.
 - README rewritten as a complete beginner guide.
+- C59 protocol execution ledger: every pre-registered analysis (A# IDs) must be executed (result cell located in a
+  logged output) or declared as a deviation; a false "no deviations" claim is blocked [E60,E67,E80,E103]. Found by
+  the pilot's independent review, which caught four omitted pre-registered analyses the gates had passed.
+- `rosctl run` now records outputs rewritten with identical bytes, so a deterministic re-run after a code edit
+  clears the STALE block (pilot finding).
 
 ## 1.2.0 (2026-11-14)
 

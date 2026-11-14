@@ -988,6 +988,9 @@ def stage_s2(root: Path, state: dict) -> Report:
         rep.block("every hypothesis needs an explicit 'Decision rule'")
     rep.extend(_wrap("method requirements", rosqa.check_protocol_requirements(core)))
     frozen = state.get("protocol_hash")
+    if not frozen and not re.search(r"\bA\d+\b", core):
+        rep.block("label every pre-registered analysis A1, A2, ... (primary, baselines, robustness, diagnostics, "
+                  "multiplicity) so its execution can be checked [E67,E80]")
     if frozen and frozen != protocol_hash(root):
         rep.block("PROTOCOL.md changed after freeze. Revert it; record changes ONLY under '## Deviations'")
     return rep
@@ -1071,11 +1074,52 @@ def stage_s7(root: Path, state: dict) -> Report:
     rep.title = "S7 manuscript"
     rep.extend(check_numbers(root))
     rep.extend(check_metric_split(root))
+    rep.extend(check_execution(root, state))
     rep.extend(check_citations(root))
     rep.extend(check_stats(root))
     rep.extend(check_language(root))
     rep.extend(check_ai_log(root))
     rep.extend(check_participant_quotes(root))
+    return rep
+
+
+NO_DEVIATION_RE = re.compile(r"\bno deviations?\b|\bwithout (any )?deviations?\b|\bdid not deviate\b", re.I)
+
+
+def check_execution(root: Path, state: dict) -> Report:
+    """Every pre-registered analysis A# was executed (result produced by a logged run) or recorded as a deviation. [E67,E80,E60,E103]"""
+    rep = Report("protocol execution")
+    ids = sorted(set(re.findall(r"\bA\d+\b", protocol_core(root))), key=lambda x: int(x[1:]))
+    rows = {r.get("analysis_id", "").strip(): r for r in read_csv(root / "ledgers/PROTOCOL_EXECUTION.csv")}
+    if not ids:
+        if state.get("protocol_hash") and not rows:
+            rep.block("frozen protocol has no A# labels: list every pre-registered analysis in ledgers/PROTOCOL_EXECUTION.csv "
+                      "(analysis_id, description, status, results_file, locator, notes) [E67]")
+        ids = sorted(rows)
+    manifest = output_manifest(root)
+    deviations = read_text(root / "protocol/PROTOCOL.md")[len(protocol_core(root)):]
+    any_deviation = False
+    for aid in ids:
+        row = rows.get(aid)
+        if row is None:
+            rep.block(f"pre-registered analysis {aid} has no row in ledgers/PROTOCOL_EXECUTION.csv (was it run?) [E67,E80]")
+            continue
+        status = row.get("status", "").strip().lower()
+        if status == "done":
+            f = row.get("results_file", "")
+            if f not in manifest or manifest[f]["sha"] != (sha256_file(root / f) if (root / f).is_file() else ""):
+                rep.block(f"{aid} marked done but '{f}' is not the output of a logged run [E67]")
+            elif row.get("locator") and resolve_locator(root / f, row["locator"]) is None:
+                rep.block(f"{aid}: locator {row['locator']!r} does not resolve in {f} [E67]")
+        elif status == "deviation":
+            any_deviation = True
+            if aid not in deviations:
+                rep.block(f"{aid} marked deviation but not explained under '## Deviations' in PROTOCOL.md [E80]")
+        else:
+            rep.block(f"{aid}: status must be 'done' or 'deviation' [E67]")
+    text = manuscript_text(root)
+    if any_deviation and NO_DEVIATION_RE.search(text):
+        rep.block("manuscript claims there were no deviations, but the execution ledger records some [E67]")
     return rep
 
 
@@ -1414,13 +1458,14 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 2
     start = time.time()
     before = tracked_outputs(root)
+    started_ns = time.time_ns()
     try:
         code = subprocess.run(cmd, cwd=root).returncode
     except OSError as exc:
         print(f"error: cannot execute {cmd[0]}: {exc}")
         code = 127
     if code == 0:
-        record_outputs(root, cmd, before)
+        record_outputs(root, cmd, before, started_ns)
     log = root / "ledgers/RUN_LOG.csv"
     new = not log.exists() or log.stat().st_size == 0
     with log.open("a", newline="", encoding="utf-8") as fh:
@@ -1433,10 +1478,12 @@ def cmd_run(args: argparse.Namespace) -> int:
     return code
 
 
-def record_outputs(root: Path, cmd: List[str], before: Dict[str, str]) -> None:
-    """Append the files this run created or changed, with the analysis code they came from. [E31,E49,E102]"""
+def record_outputs(root: Path, cmd: List[str], before: Dict[str, str], started_ns: int = 0) -> None:
+    """Append the files this run created, changed or rewrote, with the analysis code they came from. [E31,E49,E102]"""
     after = tracked_outputs(root)
-    changed = {p: sha for p, sha in after.items() if before.get(p) != sha}
+    # a deterministic re-run after a code edit rewrites identical bytes; it must still refresh the record
+    changed = {p: sha for p, sha in after.items()
+               if before.get(p) != sha or (started_ns and (root / p).stat().st_mtime_ns >= started_ns)}
     if not changed:
         return
     entry = {"at": now_utc(), "command": " ".join(cmd), "commit": git_commit(root), "outputs": changed,
@@ -1710,6 +1757,7 @@ CHECKS: Dict[str, Callable[[Path], Report]] = {
     "schema": check_schema, "outputs": check_outputs, "environment": check_environment, "ai-log": check_ai_log,
     "cleaning": check_cleaning_log, "quotes": check_participant_quotes, "metric-split": check_metric_split,
     "reviewers": check_reviewer_diversity, "permissions": check_claude_settings,
+    "execution": lambda root: check_execution(root, load_state(root)),
 }
 
 

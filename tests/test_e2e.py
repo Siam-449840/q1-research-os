@@ -147,7 +147,8 @@ class TestEndToEnd(ProjectCase):
         body = "# Protocol\n\n" + "".join(f"## {i}. {s}\n\n{PROSE * 2}\n\n" for i, s in enumerate(sections, 1))
         body = body.replace("## 2. Hypotheses\n\n", "## 2. Hypotheses\n\nH1: leave-site-out RMSE exceeds random-CV RMSE. "
                                                     "Decision rule: supported if the paired t-test on fold differences gives p below alpha. "
-                                                    "Normality of the fold differences is checked first.\n\n")
+                                                    "Normality of the fold differences is checked first. Pre-registered analyses: A1 leave-site-out OLS RMSE; "
+                                                    "A2 random five-fold comparison arm.\n\n")
         self.write("protocol/PROTOCOL.md", body + "## 11. Deviations\n\nNone yet.\n")
 
     def s3_data(self):
@@ -211,6 +212,9 @@ class TestEndToEnd(ProjectCase):
             ## References
             """)
         self.write("manuscript/manuscript.md", text)
+        self.write("ledgers/PROTOCOL_EXECUTION.csv", "analysis_id,description,status,results_file,locator,notes\n"
+                   "A1,leave-site-out OLS RMSE,done,results/metrics.json,$.group_cv_rmse,\n"
+                   "A2,random five-fold arm,done,results/metrics.json,$.random_cv_rmse,\n")
         self.write("ledgers/NUMBER_PROVENANCE.csv", "number_id,value,manuscript_location,results_file,locator,script,notes\n"
                    + "".join(f"{k},{v},Results,results/metrics.json,$.{k},analysis/model.py,\n" for k, v in vals.items()))
         self.write("ledgers/CLAIM_SUPPORT.csv", "claim_id,manuscript_location,claim_text,citekey,evidence_location,evidence_quote,support_level,checked_by\n"

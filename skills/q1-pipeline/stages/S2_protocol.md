@@ -33,6 +33,10 @@ everything above `## Deviations`; any later change there fails every subsequent 
 Changes go only into `## Deviations` as `YYYY-MM-DD | what | why | impact`, and every deviation is
 reported in the manuscript's Methods.
 
+Label every pre-registered analysis `A1`, `A2`, ... in the protocol (the S2 gate blocks an unfrozen protocol
+without labels). After running them, give each a row in `ledgers/PROTOCOL_EXECUTION.csv`: `done` with the
+results file and exact locator, or `deviation` explained under `## Deviations`. `rosctl check execution` (C59).
+
 ## v1.2 method requirements (enforced)
 
 `rosctl` scans the protocol and blocks when a method is named without its safeguard: ANOVA without the

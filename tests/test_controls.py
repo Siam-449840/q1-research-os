@@ -195,6 +195,16 @@ class TestExecutionControls(ProjectCase):
         self.write("analysis/make.py", "open('results/r.csv','w').write('m,v\\nx,2.5\\n')\n")  # code changed, not re-run
         self.assertIn("STALE", blockers(rosctl.check_outputs(self.proj)))
 
+    def test_deterministic_rerun_after_code_edit_clears_stale_even_with_identical_output(self):
+        self.write("analysis/make.py", "open('results/r.csv','w').write('m,v\\nx,1.5\\n')\n")
+        quiet(rosctl.main, ["run", "--", sys.executable, "analysis/make.py"])
+        self.write("ledgers/NUMBER_PROVENANCE.csv", "number_id,value,manuscript_location,results_file,locator,script,notes\n"
+                   "n1,1.5,R,results/r.csv,m=x:v,analysis/make.py,\n")
+        self.write("analysis/make.py", "# refactor, same output\nopen('results/r.csv','w').write('m,v\\nx,1.5\\n')\n")
+        self.assertIn("STALE", blockers(rosctl.check_outputs(self.proj)))
+        quiet(rosctl.main, ["run", "--", sys.executable, "analysis/make.py"])  # byte-identical rewrite
+        self.assertEqual(rosctl.check_outputs(self.proj).blockers, [])
+
     def test_code_hygiene_blocks_synthetic_fallbacks_and_silent_excepts(self):
         self.write("analysis/a.py", "import numpy as np\ntry:\n    df = load()\nexcept FileNotFoundError:\n    pass\n"
                                     "y = np.random.normal(size=10)\nimport warnings\nwarnings.filterwarnings('ignore')\n")
@@ -277,6 +287,28 @@ class TestManuscriptControls(ProjectCase):
         self.assertIn("error_bars must be declared", blockers(rosctl.stage_s6(self.proj, {})))
         self.write("manuscript/figures/borrowed.png", "png")  # third-party image with no script/run
         self.assertIn("borrowed.png was not produced", blockers(rosctl.check_outputs(self.proj)))
+
+
+class TestProtocolExecution(ProjectCase):
+    def test_unexecuted_preregistered_analysis_and_false_no_deviation_claim_are_blocked(self):
+        self.write("protocol/PROTOCOL.md", "## 7. Robustness\nA1 primary model. A2 sensitivity excluding top 10%.\n## 11. Deviations\nNone yet.\n")
+        self.write("analysis/a1.py", "import json\njson.dump({'rmse': 1.5}, open('results/a1.json', 'w'))\n")
+        quiet(rosctl.main, ["run", "--", sys.executable, "analysis/a1.py"])
+        hdr = "analysis_id,description,status,results_file,locator,notes\n"
+        self.write("ledgers/PROTOCOL_EXECUTION.csv", hdr + "A1,primary,done,results/a1.json,$.rmse,\n")
+        self.write("manuscript/manuscript.md", "## Methods\nThere were no deviations from the protocol.\n")
+        self.assertIn("A2 has no row", blockers(rosctl.check_execution(self.proj, {})))
+        self.write("ledgers/PROTOCOL_EXECUTION.csv", hdr + "A1,primary,done,results/a1.json,$.rmse,\nA2,sensitivity,deviation,,,not run\n")
+        text = blockers(rosctl.check_execution(self.proj, {}))
+        self.assertIn("not explained under", text)
+        self.assertIn("claims there were no deviations", text)
+        self.write("protocol/PROTOCOL.md", "## 7. Robustness\nA1 primary model. A2 sensitivity excluding top 10%.\n## 11. Deviations\n2026-11-14 | A2 not run | reason | none\n")
+        self.write("manuscript/manuscript.md", "## Methods\nAnalysis A2 was not run (see deviations).\n")
+        self.assertEqual(rosctl.check_execution(self.proj, {}).blockers, [])
+
+    def test_unfrozen_protocol_without_analysis_ids_is_blocked(self):
+        self.write("protocol/PROTOCOL.md", "## 2. Hypotheses\nH1 Decision rule: x\n## 11. Deviations\n")
+        self.assertIn("label every pre-registered analysis", blockers(rosctl.stage_s2(self.proj, {})))
 
 
 class TestReviewAndSubmissionControls(ProjectCase):

@@ -35,7 +35,8 @@ Decision rule, smallest effect size of interest. Label confirmatory vs explorato
 
 ## 7. Robustness, Sensitivity and Ablations
 
-<list each check and what result would weaken the conclusion>
+<label every pre-registered analysis A1, A2, ... (also in sections 5, 8): A3 sensitivity to ..., A4 ablation of ...;
+say what result would weaken the conclusion. Execution is checked against ledgers/PROTOCOL_EXECUTION.csv>
 
 ## 8. Multiple Comparisons and Uncertainty
 
