@@ -24,8 +24,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 FRAMEWORK_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(FRAMEWORK_ROOT / "bin"))
+import rosrefs  # noqa: E402  (sibling stdlib-only modules)
+import rosstats  # noqa: E402
+
+REVIEW_ROLES = ["editor", "methods", "domain", "reproducibility"]
+MIN_REVIEW_WORDS = 150
+SELF_REVIEWERS = {"", "self", "author", "authors", "writer", "drafting agent"}
+AGENT_ENV_MARKERS = ["CLAUDECODE", "AI_AGENT", "CODEX_SANDBOX", "CODEX_MANAGED_BY_NPM", "GEMINI_CLI", "ANTIGRAVITY_AGENT"]
+AGENT_PROCESS_NAMES = {"claude", "codex", "gemini", "agy", "antigravity", "cursor-agent", "aider"}
 STATE_FILE = Path(".ros/state.json")
 STAGES = ["S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"]
 STAGE_NAMES = {
@@ -365,30 +374,76 @@ def number_matches(token: str, value: str) -> bool:
     return abs(a - b) <= 1e-12 or token.replace(",", "") == value.replace(",", "")
 
 
-def value_in_file(value: str, path: Path) -> bool:
-    """True if `value` (as rounded in the manuscript) appears in the results file."""
+def resolve_locator(path: Path, locator: str) -> Optional[str]:
+    """Return the exact text a locator points to, or None if it does not resolve uniquely.
+
+    Locators: `line:N` (any text file) · `$.key.0.key` (JSON) · `column` (CSV with one data row) ·
+    `keycol=keyval:column` (CSV row selected by a key).
+    """
+    loc = locator.strip()
+    m = re.fullmatch(r"line:(\d+)", loc)
+    if m:
+        lines = read_text(path).splitlines()
+        n = int(m.group(1))
+        return lines[n - 1] if 1 <= n <= len(lines) else None
+    if loc.startswith("$.") and path.suffix.lower() == ".json":
+        node = json.loads(read_text(path))
+        for part in loc[2:].split("."):
+            try:
+                node = node[int(part)] if isinstance(node, list) else node[part]
+            except (KeyError, IndexError, ValueError, TypeError):
+                return None
+        return None if isinstance(node, (dict, list)) else str(node)
+    if path.suffix.lower() in {".csv", ".tsv"}:
+        return _csv_cell(path, loc)
+    return None
+
+
+def _csv_cell(path: Path, loc: str) -> Optional[str]:
+    delim = "\t" if path.suffix.lower() == ".tsv" else ","
+    with path.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh, delimiter=delim))
+    key, _, col = loc.rpartition(":")
+    if key:
+        kcol, _, kval = key.partition("=")
+        rows = [r for r in rows if (r.get(kcol) or "").strip() == kval.strip()]
+    if len(rows) != 1 or col not in rows[0]:
+        return None
+    return rows[0][col]
+
+
+def value_matches_cell(value: str, cell: str) -> bool:
+    """Manuscript value must be a correct rounding of a number in the located cell/line."""
     target = to_float(value)
     if target is None:
         return False
-    tol = 0.5 * 10 ** (-decimals(value)) + 1e-12
-    for tok in NUMBER_RE.findall(read_text(path)):
+    tol = 0.5 * 10 ** (-decimals(value)) + 1e-9
+    for tok in NUMBER_RE.findall(cell) or [cell.strip()]:
         x = to_float(tok)
-        if x is None:
-            continue
-        if abs(x - target) <= tol or (value.endswith("%") and abs(x * 100 - target) <= tol):
+        if x is not None and (abs(x - target) <= tol or (value.endswith("%") and abs(x * 100 - target) <= tol)):
             return True
     return False
+
+
+def _check_provenance_row(root: Path, i: int, row: Dict[str, str], rep: Report) -> None:
+    f = root / row.get("results_file", "")
+    if not row.get("results_file") or not f.is_file():
+        rep.block(f"NUMBER_PROVENANCE row {i}: results_file '{row.get('results_file')}' not found")
+        return
+    cell = resolve_locator(f, row.get("locator", ""))
+    if cell is None:
+        rep.block(f"NUMBER_PROVENANCE row {i}: locator {row.get('locator')!r} does not resolve uniquely in "
+                  f"{row['results_file']} (use line:N, $.json.path, column, or keycol=keyval:column)")
+    elif not value_matches_cell(row.get("value", ""), cell):
+        rep.block(f"NUMBER_PROVENANCE row {i}: value {row.get('value')!r} is not a correct rounding of "
+                  f"{cell.strip()!r} at {row['results_file']} [{row.get('locator')}]")
 
 
 def check_numbers(root: Path) -> Report:
     rep = Report("numbers")
     prov = read_csv(root / "ledgers/NUMBER_PROVENANCE.csv")
     for i, row in enumerate(prov, 2):
-        f = root / row.get("results_file", "")
-        if not row.get("results_file") or not f.is_file():
-            rep.block(f"NUMBER_PROVENANCE row {i}: results_file '{row.get('results_file')}' not found")
-        elif not value_in_file(row.get("value", ""), f):
-            rep.block(f"NUMBER_PROVENANCE row {i}: value {row.get('value')!r} not found in {row['results_file']}")
+        _check_provenance_row(root, i, row, rep)
         if not row.get("script"):
             rep.block(f"NUMBER_PROVENANCE row {i}: 'script' (generator) is empty")
     values = [r.get("value", "") for r in prov]
@@ -407,12 +462,43 @@ def parse_bib(path: Path) -> Dict[str, str]:
 
 
 def check_bib(root: Path) -> Report:
+    """Every entry needs an identifier AND a current registry verification (rosctl verify-refs)."""
     rep = Report("bibliography")
     bib = parse_bib(root / "refs/refs.bib")
+    ledger = {r.get("citekey"): r for r in read_csv(root / rosrefs.LEDGER)}
     for key, body in bib.items():
-        if not re.search(r"^\s*(doi|url)\s*=", body, re.I | re.M):
+        f = rosrefs.bib_fields(body)
+        if not f.get("doi") and not f.get("url"):
             rep.block(f"refs.bib entry '{key}' has neither doi nor url (cannot be verified)")
+            continue
+        row = ledger.get(key)
+        same_id = row and (rosrefs.norm_doi(f["doi"]) == row.get("doi") if f.get("doi") else f.get("url") == row.get("url"))
+        if not same_id:
+            rep.block(f"'{key}' not verified against a registry - run `rosctl verify-refs`")
+        elif row.get("status") in rosrefs.WEAK_OK_STATUSES:
+            rep.warn(f"'{key}' is URL-only (reachable, but title/authors not registry-checked)")
+        elif row.get("status") not in rosrefs.OK_STATUSES:
+            rep.block(f"'{key}' failed registry verification: {row.get('status')} "
+                      f"(registered title: {row.get('registered_title') or '-'}) - fix or remove it")
     return rep
+
+
+def normalise_quote(text: str) -> str:
+    text = re.sub(r"-\s*\n\s*", "", text.lower())  # re-join hyphenated line breaks from PDF text
+    return " ".join(re.findall(r"[a-z0-9%.]+", text))
+
+
+def _check_quotes(root: Path, support: List[Dict[str, str]], rep: Report) -> None:
+    """If the source text is available locally, the recorded quote must really be in it."""
+    for r in support:
+        src = root / "literature/text" / f"{r.get('citekey')}.txt"
+        if not r.get("evidence_quote"):
+            continue
+        if not src.is_file():
+            rep.warn(f"quote for '{r.get('citekey')}' unverifiable offline (add literature/text/{r.get('citekey')}.txt)")
+        elif normalise_quote(r["evidence_quote"]) not in normalise_quote(read_text(src)):
+            rep.block(f"CLAIM_SUPPORT {r.get('claim_id')}: quote for '{r.get('citekey')}' not found in "
+                      f"literature/text/{r.get('citekey')}.txt - misquotation or wrong source")
 
 
 def check_citations(root: Path) -> Report:
@@ -438,7 +524,61 @@ def check_citations(root: Path) -> Report:
             rep.block(f"{loc} cites @{key} without a CLAIM_SUPPORT row (evidence_location + evidence_quote + support_level)")
     for key in sorted(set(bib) - set(used)):
         rep.warn(f"refs.bib entry '{key}' is never cited")
+    _check_quotes(root, [r for r in support if r.get("citekey") in used], rep)
     return rep
+
+
+def check_stats(root: Path) -> Report:
+    """Recompute p-values from reported test statistics (t, F, chi2, r, z) in the manuscript."""
+    rep = Report("stats")
+    n = 0
+    for mf in manuscript_files(root):
+        for res in rosstats.check_text(strip_code(body_without_references(read_text(mf)))):
+            n += 1
+            if not res.consistent:
+                kind = "DECISION ERROR (significance flips)" if res.decision_error else "inconsistent"
+                rep.block(f"{mf.relative_to(root)}:{res.line} '{res.text}' is {kind}: recomputed p in "
+                          f"[{res.computed_low:.4g}, {res.computed_high:.4g}]")
+    if n == 0:
+        rep.warn("no APA-style test results found (e.g. 't(23) = 2.45, p = .021'); nothing to recompute")
+    return rep
+
+
+def check_splits(root: Path) -> Report:
+    """Leakage audit: within each fold, no group may appear in both train and test."""
+    rep = Report("splits")
+    d = root / "results/splits"
+    files = sorted(d.glob("*.csv")) if d.is_dir() else []
+    na = d / "NOT_APPLICABLE.md"
+    if not files:
+        if na.is_file() and words(read_text(na)) >= 40:
+            rep.warn("split audit marked NOT_APPLICABLE; reviewers will judge the justification")
+        else:
+            rep.block("no split manifest: write results/splits/*.csv (fold,split,group) from the CV code, "
+                      "or justify in results/splits/NOT_APPLICABLE.md (>= 40 words)")
+        return rep
+    for f in files:
+        _audit_split_file(root, f, rep)
+    return rep
+
+
+def _audit_split_file(root: Path, f: Path, rep: Report) -> None:
+    seen: Dict[Tuple[str, str], set] = {}
+    with f.open(newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        if not {"fold", "split", "group"} <= set(reader.fieldnames or []):
+            rep.block(f"{f.relative_to(root)} needs columns fold,split,group")
+            return
+        for row in reader:
+            seen.setdefault((row["fold"], row["split"].strip().lower()), set()).add(row["group"])
+    folds = {fold for fold, _ in seen}
+    for fold in sorted(folds):
+        leaked = seen.get((fold, "train"), set()) & seen.get((fold, "test"), set())
+        if leaked:
+            rep.block(f"LEAKAGE in {f.relative_to(root)} fold {fold}: groups in both train and test: "
+                      f"{', '.join(sorted(leaked)[:5])}")
+        if not seen.get((fold, "test")):
+            rep.block(f"{f.relative_to(root)} fold {fold} has no test rows")
 
 
 def check_manuscript_structure(root: Path) -> Report:
@@ -494,6 +634,12 @@ def check_review(root: Path) -> Report:
             rep.block(f"dimension '{dim}' scored {s:g} (< {MIN_RUBRIC_SCORE}); fix and re-review")
         if not row.get("evidence"):
             rep.block(f"dimension '{dim}': evidence column empty (scores need justification)")
+        if row.get("reviewer", "").strip().lower() in SELF_REVIEWERS:
+            rep.block(f"dimension '{dim}': reviewer '{row.get('reviewer')}' is not independent")
+    for role in REVIEW_ROLES:
+        reports = list((root / "review").glob(f"REVIEW_{role}*.md"))
+        if not reports or max(words(read_text(p)) for p in reports) < MIN_REVIEW_WORDS:
+            rep.block(f"missing review/REVIEW_{role}_vN.md (>= {MIN_REVIEW_WORDS} words) from an independent reviewer")
     issues = read_csv(root / "review/ISSUES.csv")
     if not issues:
         rep.block("review/ISSUES.csv is empty - a real adversarial review always finds issues")
@@ -600,6 +746,7 @@ def stage_s4(root: Path, state: dict) -> Report:
     last = runs[-1] if runs else None
     if last and last.get("exit_code") != "0":
         rep.block(f"last logged run FAILED: {last.get('command')} - fix the root cause, never fake output")
+    rep.extend(check_splits(root))
     return rep
 
 
@@ -633,6 +780,7 @@ def stage_s7(root: Path, state: dict) -> Report:
     rep.title = "S7 manuscript"
     rep.extend(check_numbers(root))
     rep.extend(check_citations(root))
+    rep.extend(check_stats(root))
     return rep
 
 
@@ -803,8 +951,9 @@ def cmd_approve(args: argparse.Namespace) -> int:
     if stage not in APPROVAL_STAGES:
         print(f"error: only {sorted(APPROVAL_STAGES)} need approval")
         return 2
-    if not sys.stdin.isatty() or os.environ.get("CI"):
-        print("REFUSED: approvals must be typed by the human owner in an interactive terminal.")
+    refusal = approval_refusal(os.environ, process_ancestry(), sys.stdin.isatty())
+    if refusal:
+        print(f"REFUSED: {refusal}")
         print("AI agents: STOP here, summarise the evidence, and ask the owner to run this command.")
         return 3
     rep = run_stage_checks(root, state, stage)
@@ -816,16 +965,52 @@ def cmd_approve(args: argparse.Namespace) -> int:
     if input(f"You are the accountable researcher. Type exactly '{phrase}': ").strip() != phrase:
         print("Not approved.")
         return 1
+    record_approval(root, state, stage, args.note or "")
+    print(f"{stage} approved. Now run `rosctl gate {stage}`.")
+    return 0
+
+
+def process_ancestry(limit: int = 15) -> List[str]:
+    """Executable basenames of this process's ancestors (best effort; empty if `ps` is unavailable)."""
+    names, pid = [], os.getppid()
+    for _ in range(limit):
+        try:
+            out = subprocess.run(["ps", "-o", "ppid=,comm=", "-p", str(pid)], capture_output=True, text=True, timeout=5).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            break
+        if not out:
+            break
+        ppid, _, comm = out.partition(" ")
+        names.append(Path(comm.strip()).name)
+        if not ppid.strip().isdigit() or int(ppid) <= 1:
+            break
+        pid = int(ppid)
+    return names
+
+
+def approval_refusal(env: Dict[str, str], ancestry: List[str], is_tty: bool) -> str:
+    """Why an approval must be refused, or '' if it may proceed. Defence in depth, not a proof of humanity."""
+    if not is_tty or env.get("CI"):
+        return "approvals must be typed by the human owner in an interactive terminal."
+    marker = next((m for m in AGENT_ENV_MARKERS if env.get(m)), "")
+    if marker:
+        return f"running inside an AI agent session (environment marker {marker})."
+    agent = next((a for a in ancestry if a in AGENT_PROCESS_NAMES or a.startswith("language_server")), "")
+    if agent:
+        return f"launched from an AI agent process ({agent}). Use your own terminal."
+    return ""
+
+
+def record_approval(root: Path, state: dict, stage: str, note: str) -> None:
     state.setdefault("approvals", {})[stage] = {
-        "at": now_utc(), "by": getpass.getuser(), "commit": git_commit(root), "note": args.note or "",
+        "at": now_utc(), "by": getpass.getuser(), "commit": git_commit(root), "note": note,
+        "ancestry": process_ancestry()[:6],
     }
     if stage == "S2":
         state["protocol_hash"] = protocol_hash(root)
         state["protocol_frozen_at"] = now_utc()
         print("Protocol frozen. Future changes go ONLY under '## Deviations'.")
     save_state(root, state)
-    print(f"{stage} approved. Now run `rosctl gate {stage}`.")
-    return 0
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -863,13 +1048,34 @@ def cmd_hash(args: argparse.Namespace) -> int:
     return 0
 
 
+CHECKS: Dict[str, Callable[[Path], Report]] = {
+    "numbers": check_numbers, "citations": check_citations, "recompute": check_recompute,
+    "review": check_review, "manuscript": check_manuscript_structure, "stats": check_stats,
+    "splits": check_splits, "refs": check_bib,
+}
+
+
 def cmd_check(args: argparse.Namespace) -> int:
     root = find_root(Path.cwd())
-    fn = {"numbers": check_numbers, "citations": check_citations, "recompute": check_recompute,
-          "review": check_review, "manuscript": check_manuscript_structure}[args.what]
-    rep = fn(root)
+    rep = CHECKS[args.what](root)
     rep.print()
     return 0 if rep.ok else 1
+
+
+def cmd_verify_refs(args: argparse.Namespace) -> int:
+    """Network step: resolve every refs.bib entry against registries and write the ledger."""
+    root = find_root(Path.cwd())
+    entries = parse_bib(root / "refs/refs.bib")
+    if not entries:
+        print("refs/refs.bib has no entries")
+        return 1
+    rows = rosrefs.verify_bib(entries)
+    path = rosrefs.write_ledger(root, rows)
+    bad = [r for r in rows if r["status"] not in rosrefs.OK_STATUSES | rosrefs.WEAK_OK_STATUSES]
+    for r in rows:
+        print(f"  {r['status']:<22} {r['citekey']:<28} sim={r['title_similarity'] or '-':<6} {r['registered_title'][:60]}")
+    print(f"wrote {path.relative_to(root)}: {len(rows) - len(bad)}/{len(rows)} verified")
+    return 1 if bad else 0
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -921,8 +1127,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("paths", nargs="+")
     s.set_defaults(fn=cmd_hash)
     s = sub.add_parser("check", help="run one verifier")
-    s.add_argument("what", choices=["numbers", "citations", "recompute", "review", "manuscript"])
+    s.add_argument("what", choices=sorted(CHECKS))
     s.set_defaults(fn=cmd_check)
+    sub.add_parser("verify-refs", help="resolve refs.bib DOIs/URLs against registries (network)").set_defaults(fn=cmd_verify_refs)
     sub.add_parser("doctor", help="check installed tools").set_defaults(fn=cmd_doctor)
     return p
 

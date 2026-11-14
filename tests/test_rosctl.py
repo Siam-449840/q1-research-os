@@ -19,6 +19,7 @@ sys.modules["rosctl"] = rosctl
 spec.loader.exec_module(rosctl)
 
 EXAMPLE = ROOT / "examples/agriculture-rice-yield-transfer/PROPOSAL.md"
+LEDGER_HEADER = "citekey,doi,url,status,title_similarity,registered_title,registered_year,bib_year,is_retracted,source,checked_at\n"
 
 
 def quiet(fn, *args):
@@ -143,7 +144,7 @@ class TestNumbers(ProjectCase):
                    "n1,0.91,Results,results/metrics.csv,rmse,analysis/05.py,\n")
         self.write("manuscript/manuscript.md", "## Results\nRMSE was 0.91.\n")
         rep = rosctl.check_numbers(self.proj)
-        self.assertTrue(any("not found in results/metrics.csv" in b for b in rep.blockers))
+        self.assertTrue(any("not a correct rounding" in b for b in rep.blockers))
 
     def test_numbers_in_reference_list_are_not_checked(self):
         self.write("manuscript/manuscript.md", "## Results\nRMSE was 0.82.\n## References\nSmith 2020, 45(3), 112-130.\n")
@@ -158,6 +159,8 @@ class TestCitations(ProjectCase):
         self.write("ledgers/CLAIM_SUPPORT.csv",
                    "claim_id,manuscript_location,claim_text,citekey,evidence_location,evidence_quote,support_level,checked_by\n"
                    "c1,Intro,x,smith2020yield,p. 4,\"yields rose\",supports,agent\n")
+        self.write("ledgers/REFERENCE_VERIFICATION.csv", LEDGER_HEADER +
+                   "smith2020yield,10.1/x,,verified,0.990,T,2020,2020,no,doi.org,2026-11-14T00:00:00Z\n")
 
     def test_supported_citation_passes_and_emails_are_not_citations(self):
         self.write("manuscript/manuscript.md", "## Introduction\nYields rose [@smith2020yield]. Contact me@uni.edu.\n")
