@@ -146,6 +146,8 @@ class TestDesignControls(unittest.TestCase):
                   "rate controlled; experimental unit is the plot; interaction tested; seeds fixed with 10 repeated runs "
                   "and variance across seeds reported; nested cross-validation; tuned baseline; F1 and balanced accuracy.")
         self.assertEqual(rosqa.check_protocol_requirements(strong)[0], [])
+        regression = "Linear regression with residual normality and homoscedasticity diagnostics; seeds and baseline."
+        self.assertFalse(any("[E55]" in m for m in rosqa.check_protocol_requirements(regression)[0]))  # pilot false positive
 
 
 class TestDataControls(ProjectCase):

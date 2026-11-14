@@ -42,6 +42,21 @@ class TestSearchHelper(ProjectCase):
         rosctl._check_search_log(self.proj, rosctl.read_csv(self.proj / "ledgers/SEARCH_LOG.csv"), rep)
         self.assertFalse(any("raw_output" in b or "hits" in b for b in rep.blockers))
 
+    def test_truncated_response_is_retried_then_refused_never_parsed(self):
+        calls = []
+        partial = '{"meta": {"count": 7}, "results": ['
+        full = json.dumps({"meta": {"count": 7}, "results": []})
+
+        def flaky(url, headers):
+            calls.append(url)
+            return (200, partial) if len(calls) < 2 else (200, full)
+        row = rosauto.run_search(self.proj, "q", "openalex", "main", "", flaky)
+        self.assertEqual((row["hits"], len(calls)), ("7", 2))
+        self.assertIn("select=", calls[0])
+        with self.assertRaises(RuntimeError):
+            rosauto.run_search(self.proj, "q", "openalex", "main", "", lambda u, h: (200, partial))
+        self.assertEqual(len(rosctl.read_csv(self.proj / "ledgers/SEARCH_LOG.csv")), 1)
+
     def test_failed_search_logs_nothing(self):
         with self.assertRaises(RuntimeError):
             rosauto.run_search(self.proj, "q", "openalex", "main", "", lambda u, h: (503, ""))
@@ -114,6 +129,23 @@ class TestProvenanceHelper(ProjectCase):
         rows = rosctl.read_csv(self.proj / "ledgers/NUMBER_PROVENANCE.csv")
         self.assertEqual([(r["locator"], r["script"]) for r in rows], [("model=rf:rmse", "analysis/m.py")])
         self.assertFalse(any("0.821" in b for b in rosctl.check_numbers(self.proj).blockers))
+
+
+class TestPilotFindings(ProjectCase):
+    def test_negative_cell_keeps_its_sign_found_in_the_real_pilot(self):
+        self.assertTrue(rosctl.value_matches_cell("-8.1%", "-0.08050304001810171"))
+        self.assertFalse(rosctl.value_matches_cell("1.1%", "-0.0107"))
+
+    def test_cite_number_validates_before_writing(self):
+        self.write("analysis/m.py", "import json\njson.dump({'a': 1.5781, 'b': 1.5781}, open('results/m.json', 'w'))\n")
+        quiet(rosctl.main, ["run", "--", sys.executable, "analysis/m.py"])
+        code, out = quiet(rosctl.main, ["cite-number", "1.578", "results/m.json", "$.b", "--at", "manuscript/manuscript.md:3"])
+        self.assertEqual(code, 0, out)
+        code, out = quiet(rosctl.main, ["cite-number", "1.700", "results/m.json", "$.b", "--at", "x"])
+        self.assertEqual(code, 1)
+        self.assertIn("REFUSED", out)
+        rows = rosctl.read_csv(self.proj / "ledgers/NUMBER_PROVENANCE.csv")
+        self.assertEqual([(r["value"], r["script"]) for r in rows], [("1.578", "analysis/m.py")])
 
 
 class TestGuidanceHelpers(ProjectCase):

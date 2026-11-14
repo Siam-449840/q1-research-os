@@ -344,7 +344,7 @@ PROTOCOL_RULES = [
     (r"machine learning|random forest|xgboost|gradient boosting|neural network|deep learning|classifier|svm", r"nested|validation set|held-out|hold-out|inner fold",
      "hyperparameters must be tuned without touching the test set [E56]"),
     (r"machine learning|random forest|xgboost|gradient boosting|neural network|deep learning|classifier|svm", r"baseline", "ML needs named, equally tuned baselines [E53]"),
-    (r"classif|detection|diagnos", r"f1|balanced accuracy|auc|mcc|precision|recall|kappa", "classification needs imbalance-aware metrics, not accuracy alone [E55]"),
+    (r"classifi(er|cation)|detection model|disease detection|diagnostic (model|classifier)", r"f1|balanced accuracy|auc|mcc|precision|recall|kappa", "classification needs imbalance-aware metrics, not accuracy alone [E55]"),
     (r"benchmark|public dataset|kaggle|imagenet|plantvillage|well-known dataset", r"contamination|leak|memori", "public benchmarks need a contamination/leakage statement [E109]"),
     (r"genom|sequenc|rna-seq|gwas|snp|annotation", r"genome (build|assembly|version)|reference (genome|assembly)|ensembl release|gff|gtf", "genomic work must pin reference genome/annotation versions [E114]"),
     (r"github|repositor(y|ies)|mining software", r"bot|fork|duplicate", "repository mining must filter bots, forks and duplicates [E123]"),

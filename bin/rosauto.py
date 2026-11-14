@@ -45,11 +45,26 @@ def slug(text: str, n: int = 40) -> str:
 
 # ----------------------------------------------------------------------------- search (E81, E86, E15)
 
-def openalex_search(query: str, fetch: Fetch, year_from: str = "", per_page: int = 25) -> Tuple[int, str]:
-    params = {"search": query, "per-page": str(per_page)}
+OPENALEX_FIELDS = "id,doi,display_name,publication_year,cited_by_count,type,primary_location"
+
+
+def openalex_search(query: str, fetch: Fetch, year_from: str = "", per_page: int = 25, attempts: int = 3) -> Tuple[int, str]:
+    """Search OpenAlex with a small field selection; retry when a chunked response arrives truncated."""
+    params = {"search": query, "per-page": str(per_page), "select": OPENALEX_FIELDS}
     if year_from:
         params["filter"] = f"from_publication_date:{year_from}-01-01"
-    return fetch("https://api.openalex.org/works?" + urllib.parse.urlencode(params), {"Accept": "application/json"})
+    url = "https://api.openalex.org/works?" + urllib.parse.urlencode(params)
+    status, body = 0, ""
+    for _ in range(attempts):
+        status, body = fetch(url, {"Accept": "application/json"})
+        if status != 200:
+            return status, body
+        try:
+            json.loads(body)
+            return status, body
+        except ValueError:
+            continue  # truncated transfer: retry, never parse a partial body
+    raise RuntimeError(f"OpenAlex response stayed truncated after {attempts} attempts; nothing logged")
 
 
 def run_search(root: Path, query: str, source: str, purpose: str, year_from: str, fetch: Fetch) -> Dict[str, str]:

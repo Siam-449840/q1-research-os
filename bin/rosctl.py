@@ -429,7 +429,8 @@ def value_matches_cell(value: str, cell: str) -> bool:
     if target is None:
         return False
     tol = 0.5 * 10 ** (-decimals(value)) + 1e-9
-    for tok in NUMBER_RE.findall(cell) or [cell.strip()]:
+    whole = to_float(cell.strip())
+    for tok in ([cell.strip()] if whole is not None else NUMBER_RE.findall(cell)):
         x = to_float(tok)
         if x is not None and (abs(x - target) <= tol or (value.endswith("%") and abs(x * 100 - target) <= tol)):
             return True
@@ -1379,9 +1380,12 @@ def approval_refusal(env: Dict[str, str], ancestry: List[str], is_tty: bool) -> 
 def confirm_checklist(root: Path, stage: str) -> Optional[List[str]]:
     """Mandatory human-review items for this stage (core/CONTROLS.csv kind=human). Returns confirmed ids or None."""
     rows = [r for r in load_controls(root) if r.get("kind") == "human" and r.get("stage") == stage]
-    print(f"Human checklist for {stage} ({len(rows)} items). Answer 'yes' only if you personally verified it.")
+    print(f"Human checklist for {stage} ({len(rows)} items). Type the full word 'yes' only if you personally verified it.")
     for r in rows:
-        if input(f"  [{r['control_id']}] {r['description']} (yes/no): ").strip().lower() != "yes":
+        answer = input(f"  [{r['control_id']}] {r['description']} (type yes or no): ").strip().lower()
+        if answer != "yes":
+            hint = " (type the full word 'yes' to confirm)" if answer in {"y", "ye", "ok"} else ""
+            print(f"  [{r['control_id']}] not confirmed{hint}. Nothing was recorded; do the check, then run approve again.")
             return None
     return [r["control_id"] for r in rows]
 
@@ -1624,6 +1628,8 @@ def cmd_provenance(args: argparse.Namespace) -> int:
     root = find_root(Path.cwd())
     values = [r.get("value", "") for r in read_csv(root / "ledgers/NUMBER_PROVENANCE.csv")]
     files = [root / p for p in tracked_outputs(root) if p.startswith(("results/", "manuscript/tables/"))]
+    if (root / "protocol/PROTOCOL.md").is_file():
+        files.append(root / "protocol/PROTOCOL.md")
     applied = ambiguous = missing = 0
     for mf in manuscript_files(root):
         for ln, tok in manuscript_numbers(read_text(mf)):
@@ -1631,7 +1637,7 @@ def cmd_provenance(args: argparse.Namespace) -> int:
                 continue
             cands = rosauto.locator_candidates(root, tok, value_matches_cell, files)
             loc = f"{mf.relative_to(root)}:{ln}"
-            script = _producing_script(root, cands[0][0]) if len(cands) == 1 else ""
+            script = (_producing_script(root, cands[0][0]) or ("protocol (pre-registered)" if cands[0][0].startswith("protocol/") else "")) if len(cands) == 1 else ""
             if len(cands) == 1 and significant_digits(tok) >= 3 and script and args.apply:
                 rosauto.append_row(root / "ledgers/NUMBER_PROVENANCE.csv", rosauto.NUM_HEADER,
                                    {"number_id": f"auto{len(values) + applied + 1}", "value": tok, "manuscript_location": loc,
@@ -1649,6 +1655,29 @@ def cmd_provenance(args: argparse.Namespace) -> int:
                 print(f"  CHOOSE   {tok:<10} {loc} ({why}): " + "; ".join(f"{f} [{l}]" for f, l in cands[:4]))
     print(f"applied {applied}, need a decision {ambiguous}, no source {missing}")
     return 1 if missing else 0
+
+
+def cmd_cite_number(args: argparse.Namespace) -> int:
+    """Record a provenance row chosen by a person or agent, but only if the locator and rounding check out."""
+    root = find_root(Path.cwd())
+    f = root / args.results_file
+    if not f.is_file():
+        print(f"REFUSED: {args.results_file} not found")
+        return 1
+    cell = resolve_locator(f, args.locator)
+    if cell is None or not value_matches_cell(args.value, cell):
+        print(f"REFUSED: {args.value!r} is not a correct rounding of {cell!r} at {args.results_file} [{args.locator}]")
+        return 1
+    script = args.script or _producing_script(root, args.results_file)
+    if not script:
+        print("REFUSED: --script is required (no logged run produced this file)")
+        return 1
+    n = len(read_csv(root / "ledgers/NUMBER_PROVENANCE.csv")) + 1
+    rosauto.append_row(root / "ledgers/NUMBER_PROVENANCE.csv", rosauto.NUM_HEADER,
+                       {"number_id": f"n{n}", "value": args.value, "manuscript_location": args.at, "results_file": args.results_file,
+                        "locator": args.locator, "script": script, "notes": "rosctl cite-number (validated)"})
+    print(f"recorded {args.value} <- {args.results_file} [{args.locator}]")
+    return 0
 
 
 def cmd_log_ai(args: argparse.Namespace) -> int:
@@ -1781,6 +1810,13 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("provenance", help="find results cells for unprovenanced manuscript numbers")
     s.add_argument("--apply", action="store_true", help="write rows for unique, >= 3-significant-digit matches")
     s.set_defaults(fn=cmd_provenance)
+    s = sub.add_parser("cite-number", help="record a chosen provenance row after validating locator and rounding")
+    s.add_argument("value")
+    s.add_argument("results_file")
+    s.add_argument("locator")
+    s.add_argument("--at", required=True, help="manuscript location, e.g. manuscript/manuscript.md:12")
+    s.add_argument("--script", default="")
+    s.set_defaults(fn=cmd_cite_number)
     s = sub.add_parser("log-ai", help="append an AI usage record")
     s.add_argument("--tool", required=True)
     s.add_argument("--model", required=True)

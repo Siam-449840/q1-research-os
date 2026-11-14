@@ -1,397 +1,487 @@
 # Q1 Research OS
 
-**An evidence-bound, gate-enforced research framework for AI coding agents (Claude Code, Antigravity
-and any agent that reads `AGENTS.md`). You write one strong proposal; the agent does most of the
-labour; machine-checked gates make sure nothing is fabricated, untraceable or overclaimed.**
+**A research framework for AI coding agents (Claude Code, Google Antigravity, and any agent that reads
+`AGENTS.md`). You write one clear research proposal. The AI agent does most of the work: searching the
+literature, downloading data, writing and running analysis code, making figures, drafting the paper. A
+built-in checker called `rosctl` blocks every step until the work is real, traceable and honest, and only
+you can approve the big decisions.**
 
 [![ci](https://github.com/Siam-449840/q1-research-os/actions/workflows/ci.yml/badge.svg)](https://github.com/Siam-449840/q1-research-os/actions/workflows/ci.yml)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
 ![deps](https://img.shields.io/badge/runtime%20deps-none%20(stdlib)-brightgreen)
 
+> **Honest promise.** No tool can guarantee that a journal accepts your paper. What this framework does is
+> remove the avoidable reasons for rejection: invented references, numbers nobody computed, data leakage,
+> statistical mistakes, overclaiming, irreproducible code. It was tested against a list of **136 known
+> failure modes** of AI-assisted research and on a [real pilot study](docs/PILOT_2026-11.md).
+
 ---
 
 ## Contents
 
-1. [Why this exists](#1-why-this-exists)
-2. [What you get](#2-what-you-get)
-3. [Quick start (5 minutes)](#3-quick-start-5-minutes)
-4. [How it works](#4-how-it-works)
-5. [The proposal: your one input](#5-the-proposal-your-one-input)
-6. [The 11 stages and their gates](#6-the-11-stages-and-their-gates)
-7. [`rosctl` command reference](#7-rosctl-command-reference)
-8. [Ledgers: the audit trail](#8-ledgers-the-audit-trail)
-9. [Project layout](#9-project-layout)
-10. [Domain packs and adding your discipline](#10-domain-packs-and-adding-your-discipline)
-11. [Using it with Claude Code, Antigravity and other agents](#11-using-it-with-claude-code-antigravity-and-other-agents)
-12. [Optional ecosystem](#12-optional-ecosystem)
-13. [The Q1 quality model](#13-the-q1-quality-model)
-14. [Honest limits](#14-honest-limits)
-15. [Repository layout](#15-repository-layout)
-16. [Contributing, citation, license, credits](#16-contributing-citation-license-credits)
+**Part A — Understand it**
+1. [What it is, in one picture](#1-what-it-is-in-one-picture)
+2. [Who it is for, and what you still have to do](#2-who-it-is-for-and-what-you-still-have-to-do)
+3. [Five ideas you need](#3-five-ideas-you-need)
 
-Documentation: [Setup Guide](docs/SETUP_GUIDE.md) · [Research Playbook](docs/PLAYBOOK.md) ·
-[Proposal Guide](docs/PROPOSAL_GUIDE.md) · [Q1 Rubric](core/Q1_RUBRIC.md) ·
-[Constitution](core/CONSTITUTION.md)
+**Part B — Use it**
+4. [Install (10 minutes)](#4-install-10-minutes)
+5. [Your first project, step by step](#5-your-first-project-step-by-step)
+6. [Writing the proposal](#6-writing-the-proposal)
+7. [The 11 stages: what the AI does, what you do, what is checked](#7-the-11-stages)
+8. [Working with Claude Code](#8-working-with-claude-code)
+9. [Working with Antigravity and other agents](#9-working-with-antigravity-and-other-agents)
+10. [Every command, explained](#10-every-command-explained)
+11. [Your approvals: the human checklist](#11-your-approvals-the-human-checklist)
+
+**Part C — Trust it**
+12. [How fabrication and mistakes are blocked](#12-how-fabrication-and-mistakes-are-blocked)
+13. [Ledgers: the audit trail](#13-ledgers-the-audit-trail)
+14. [Evidence: tests, pilot, platforms](#14-evidence-tests-pilot-platforms)
+15. [Honest limits](#15-honest-limits)
+
+**Part D — Reference**
+16. [Project folder layout](#16-project-folder-layout)
+17. [Domain packs and adding your discipline](#17-domain-packs-and-adding-your-discipline)
+18. [Troubleshooting](#18-troubleshooting)
+19. [FAQ](#19-faq)
+20. [Repository layout, contributing, citation, license](#20-repository-layout-contributing-citation-license)
 
 ---
 
-## 1. Why this exists
+# Part A — Understand it
 
-AI agents can now search literature, write analysis code and draft papers. Used naively, they also
-invent references, round numbers that were never computed, tune on the test set, and write confident
-prose about results that do not exist. "One-click paper" tools optimise for output, not for truth.
-
-Q1 Research OS takes the opposite approach:
-
-- **The agent does the labour** (searching, coding, computing, drafting, checking), roughly 90–95 %
-  of the hours in a computational or secondary-data study.
-- **Every output must be verifiable.** Numbers trace to result files and scripts; citations trace to
-  passages; analyses trace to a protocol frozen before results were seen.
-- **Rules are enforced by code, not by prompts.** `rosctl`, a dependency-free Python gatekeeper, checks
-  each stage. The agent cannot pass a gate by asserting it did the work.
-- **Judgement stays human.** Four gates (novelty, protocol freeze, review acceptance, submission) can
-  only be approved by a person typing at a real terminal.
-
-## 2. What you get
-
-- **`rosctl`**: init, proposal linter, cumulative stage gates, human-only approvals, logged runs,
-  data hashing, and verifiers: registry-checked references (exists / title matches / not retracted),
-  exact-cell number provenance, machine-checked quotes, p-value recomputation, train/test leakage
-  audit, independent re-computation and independent review, plus (v1.2) language, code-hygiene,
-  data-schema, output-provenance, dependency, prompt-injection and reviewer-diversity checks. Stdlib only;
-  93 tests incl. a full S0→S10 end-to-end run with 6 fault injections; 32/32 mutants killed.
-- **Automation helpers (v1.3)** that write ledgers correctly instead of by hand: `search`, `add-ref`,
-  `fetch-text`, `fetch`, `provenance --apply`, `log-ai`, and `next` (blockers → fix commands).
-- **A research constitution** (`AGENTS.md` = `CLAUDE.md` = `GEMINI.md`) with 13 absolute rules
-  (no fabrication, stop on failure, traceable numbers, independent re-computation, verified
-  citations, frozen protocol, read-only raw data, legal access, human gates, no external actions,
-  no overclaiming, honesty about limits).
-- **Five agent skills**: `q1-pipeline` (orchestrator + 11 stage playbooks), `q1-proposal`,
-  `q1-literature`, `q1-verify`, `q1-review`.
-- **A Q1 rubric** (15 dimensions + desk-reject simulation) that the review panel must clear.
-- **A 136-error control matrix** ([docs/ERROR_CONTROL_MATRIX.md](docs/ERROR_CONTROL_MATRIX.md)): every known
-  failure mode of AI-assisted research mapped to fail-closed gates (58 controls) and mandatory human checks
-  (26 checklist items enforced by `rosctl approve`), with an honest residual-risk rating.
-- **Domain packs**: `agriculture` (13 subfields: datasets, methods, baselines, pitfalls, reporting
-  standards, venues), `software-engineering`, and a `_template` for any discipline.
-- **A proposal template, a proposal-writing guide and a worked example** that passes the linter.
-- **Optional curated skills** from K-Dense `scientific-agent-skills` and `claude-scholar`, pinned.
-
-## 3. Quick start (5 minutes)
-
-```bash
-git clone https://github.com/Siam-449840/q1-research-os.git
-cd q1-research-os && ./install.sh          # puts `rosctl` on your PATH (~/.local/bin)
-rosctl doctor                              # checks git, uv and optional tools
-
-rosctl init ~/research/my-paper --domain agriculture
-cd ~/research/my-paper
-# write PROPOSAL.md (see docs/PROPOSAL_GUIDE.md and examples/)
-rosctl lint-proposal                       # iterate until there are no blockers
-```
-
-Then open the folder in **Claude Code** or **Antigravity** and say:
-
-```
-Use the q1-pipeline skill. Read AGENTS.md and PROPOSAL.md, run `rosctl status`, and work through the
-stages. Stop at every human gate and give me the checkpoint in my communication language.
-```
-
-Full installation details: [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md).
-
-## 4. How it works
+## 1. What it is, in one picture
 
 ```mermaid
 flowchart TB
-  subgraph You
-    P[PROPOSAL.md]
-    A1{{approve S1}}
-    A2{{approve S2}}
-    A8{{approve S8}}
-    A9{{approve S9 + submit}}
+  subgraph You["👤 You (the researcher)"]
+    P[PROPOSAL.md<br/>your research idea]
+    A1{{approve S1<br/>novelty}}
+    A2{{approve S2<br/>protocol}}
+    A8{{approve S8<br/>review}}
+    A9{{approve S9<br/>+ you submit}}
   end
-  subgraph Agent["AI agent (Claude Code / Antigravity / ...)"]
-    K[q1-pipeline skill<br/>+ stage playbooks]
-    W[search · code · compute · draft]
+  subgraph Agent["🤖 AI agent (Claude Code / Antigravity / ...)"]
+    K[q1-pipeline skill<br/>+ 11 stage playbooks]
+    W[search · download · code · run · draft]
   end
-  subgraph Gatekeeper["rosctl (code, not prompts)"]
-    G[cumulative gates<br/>S0 … S10]
-    L[(ledgers/<br/>provenance · claims · runs · audits)]
+  subgraph Gatekeeper["🛡️ rosctl (code, not prompts)"]
+    H[helpers that write<br/>records correctly]
+    G[gates S0 … S10<br/>block until it is real]
+    L[(ledgers<br/>the audit trail)]
   end
-  P --> K --> W --> L --> G
-  G -- blockers --> W
-  G -- needs approval --> A1 & A2 & A8 & A9
+  P --> K --> W --> H --> L --> G
+  G -- "blocked: fix it" --> W
+  G -- "needs a human" --> A1 & A2 & A8 & A9
 ```
 
-The working loop the agent follows (from the constitution):
+The research goes through **11 stages** (S0 to S10). At the end of each stage `rosctl gate` checks the work.
+If anything is missing, invented or inconsistent, the stage stays blocked and `rosctl next` tells the agent
+exactly which command fixes it. Four stages can only be approved by you, typing in your own terminal.
+
+```mermaid
+flowchart LR
+  S0[S0 proposal] --> S1[S1 literature<br/>& novelty]
+  S1 -->|you approve| S2[S2 protocol<br/>frozen]
+  S2 -->|you approve| S3[S3 data]
+  S3 --> S4[S4 analysis]
+  S4 --> S5[S5 independent<br/>re-computation]
+  S5 --> S6[S6 figures]
+  S6 --> S7[S7 manuscript]
+  S7 --> S8[S8 independent<br/>review]
+  S8 -->|you approve| S9[S9 submission<br/>package]
+  S9 -->|you submit| S10[S10 revision]
+```
+
+## 2. Who it is for, and what you still have to do
+
+It is for anyone doing **computational or secondary-data research** (statistics, machine learning,
+modelling, meta-analysis, data mining) who wants an AI agent to do the heavy lifting without losing
+scientific integrity. It works for beginners because every stage tells the agent what to do and tells you
+what to check. It ships with a deep **agriculture** pack and a **software-engineering** pack, and a template
+for any other discipline.
+
+| The AI agent does | You do (and only you can) |
+|---|---|
+| literature searches, reference collection and verification | choose the research question and hypotheses |
+| downloading data, documenting and hashing it | read the 3 closest papers yourself |
+| writing, testing and running the analysis code | approve novelty (S1) and freeze the protocol (S2) |
+| independent re-computation of key numbers | arrange independent reviewers (S8) |
+| figures, tables and a full manuscript draft | revise the text, interpret the results |
+| traceability records for every number and citation | verify the journal, run the similarity check, **submit** |
+
+## 3. Five ideas you need
+
+1. **The proposal is the steering wheel.** Everything the agent does traces back to `PROPOSAL.md`.
+2. **Gates, not promises.** The agent cannot "say" it did something; `rosctl gate` checks the files.
+3. **Everything leaves a record.** Searches, downloads, runs, numbers and citations are written to
+   *ledgers* (CSV files) so anyone can audit them later.
+4. **Second opinions are independent.** Key results are computed twice by different code; the paper is
+   reviewed by someone other than the AI that wrote it.
+5. **Big decisions are human.** `rosctl approve` refuses to run inside an AI session and asks you a short
+   checklist of things only a human can confirm.
+
+---
+
+# Part B — Use it
+
+## 4. Install (10 minutes)
+
+**You need:** macOS, Linux or Windows (WSL2); Python 3.9 or newer; git; [uv](https://docs.astral.sh/uv/getting-started/installation/);
+and an AI agent (Claude Code and/or Antigravity).
+
+```bash
+git clone https://github.com/Siam-449840/q1-research-os.git
+cd q1-research-os
+./install.sh          # puts `rosctl` on your PATH (~/.local/bin)
+rosctl doctor         # shows what is installed and how to install what is missing
+```
+
+If `rosctl` is "command not found", add `export PATH="$HOME/.local/bin:$PATH"` to `~/.zshrc` (or `~/.bashrc`)
+and open a new terminal.
+
+**Optional extras:**
+
+```bash
+./install.sh --with-tools     # literature tools: paper-search, PaperQA2, refchecker, bibvet, zotero-mcp
+./install.sh --with-extras    # 29 curated scientific skills (statistics, writing, review, ...), pinned versions
+./install.sh --global-skills  # make the q1-* skills available in every Claude Code project
+```
+
+After `--with-extras`, add the line it prints (`export ROS_EXTRA_SKILLS=...`) to your shell profile.
+More detail: [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md).
+
+## 5. Your first project, step by step
+
+**Step 1 — Create the project** (one folder per paper):
+
+```bash
+rosctl init ~/research/my-paper --domain agriculture     # or software-engineering, or _template
+cd ~/research/my-paper
+```
+
+**Step 2 — Write `PROPOSAL.md`.** Open the file; replace every `<placeholder>`. Read
+[section 6](#6-writing-the-proposal) and the [worked example](examples/agriculture-rice-yield-transfer/PROPOSAL.md).
+Check it as often as you like:
+
+```bash
+rosctl lint-proposal        # aim for no blockers and a score of 90+
+```
+
+**Step 3 — Start the agent inside the project folder** and give it the start prompt:
 
 ```
-rosctl status  →  read stages/<STAGE>_*.md  →  do the work (rosctl run -- …)  →  rosctl gate
-     ↑                                                                              │
-     └──────── fix blockers (max 3 tries, then ask) ◄──── FAIL ──────────────────────┤
-                                                    PASS / NEEDS APPROVAL → checkpoint
+Use the q1-pipeline skill. Read AGENTS.md and PROPOSAL.md, run `rosctl status`, and work through the
+stages. Use the rosctl helpers instead of writing ledger rows by hand. Stop at every human gate and give
+me the checkpoint in my communication language.
 ```
 
-Key design decisions:
+**Step 4 — Let it work; read the checkpoints.** After every stage the agent reports *Done / Verified /
+Not verified / Needs you*. Read "Not verified" first.
 
-| Decision | Why | Rejected alternative |
-|---|---|---|
-| Gates in code (`rosctl`) | agents can be persuaded; code cannot | prompt-only rules |
-| Cumulative gates | later edits cannot silently break earlier guarantees (frozen protocol, raw-data hashes) | per-stage checks only |
-| Approvals need an interactive terminal | stops an agent self-approving | approval flags in files |
-| State in files, not chat | resume any time, switch agents, audit everything | conversation memory |
-| Stdlib-only tooling | installs anywhere, nothing to break | framework with heavy dependencies |
-| Per-project copies of rules and skills | a running study never changes under your feet | global, auto-updating rules |
+**Step 5 — Approve the gates yourself** when asked, in your own terminal (not the agent's):
 
-## 5. The proposal: your one input
+```bash
+rosctl approve S1      # then S2, S8, S9 when the agent says the checks pass
+```
 
-`PROPOSAL.md` has 13 sections: metadata (domain pack, ranked target journals, communication
-language), contribution statement, problem and significance, state of knowledge and gap, research
-questions with hypotheses (rival explanation, discriminating prediction, measurement, decision rule,
-smallest effect size of interest), data sources (URL, version, license, coverage, access), methods and
-validation, expected results and planned figures, threats to validity, ethics and sharing, definition
-of done, constraints, and decisions reserved for the owner.
+**Step 6 — Revise, then submit personally.** The agent prepares the cover letter, checklist and archive;
+you verify the journal, run your institution's similarity check and submit.
 
-`rosctl lint-proposal` blocks placeholders, missing sections, hypotheses without decision rules,
-data without URLs or licenses, methods without baselines, validation or robustness plans, and warns
-on missing uncertainty plans, fewer than three planned figures and hype words.
+At any time:
 
-Read **[docs/PROPOSAL_GUIDE.md](docs/PROPOSAL_GUIDE.md)**: ten principles, section-by-section advice,
-weak → strong examples, and a pre-flight checklist. See the worked example in
-[`examples/agriculture-rice-yield-transfer/`](examples/agriculture-rice-yield-transfer/PROPOSAL.md).
+```bash
+rosctl status     # where am I?
+rosctl next       # what is blocking, and which command fixes it?
+```
 
-## 6. The 11 stages and their gates
+## 6. Writing the proposal
 
-| Stage | Agent does | `rosctl gate` blocks unless… | Human gate |
+The proposal has 13 sections. The most important rules:
+
+1. **One-sentence contribution.** "We show that ___, which matters because ___."
+2. **Neutral, testable questions.** Not "Why does X increase yield?" but "What is the effect of X on yield?"
+   (`rosctl` blocks questions that assume their answer).
+3. **Each hypothesis has five lines:** rival explanation, discriminating prediction, measurement,
+   **decision rule** (what result counts as support), smallest effect that matters.
+4. **Data you have opened:** URL, version, licence, coverage, unit, access.
+5. **Validation that matches your data:** spatial, temporal or grouped data need grouped validation.
+6. **Strong baselines, planned figures, threats to validity, what you will publish if it fails.**
+7. **Section 12 lists what the agent must always ask you.**
+
+Full guide with weak-to-strong examples: [docs/PROPOSAL_GUIDE.md](docs/PROPOSAL_GUIDE.md).
+
+## 7. The 11 stages
+
+| Stage | The AI agent does | You do | `rosctl gate` checks |
 |---|---|---|---|
-| **S0** Proposal | lint + PI-style critique | proposal has no lint blockers | |
-| **S1** Literature & novelty | search protocol, logged multi-source search, snowballing, closest-work table, verified BibTeX, novelty verdict | `SEARCH_PROTOCOL.md`; ≥10 logged queries over ≥3 sources; ≥10 closest works classified none/partial/direct and present in `refs.bib`; verdict ≥150 words; **every bib entry registry-verified** by `rosctl verify-refs` (DOI resolves, title matches ≥0.85, not retracted) | **yes** |
-| **S2** Protocol | pre-registered plan with decision rules | all protocol sections; hypotheses with decision rules; after approval, SHA-256 of the frozen part must never change | **yes** (freezes) |
-| **S3** Data | download scripts, hashes, licenses, data card, sanity audit | `DATA_CARD.md`; every provenance row has URL, license, path under `data/raw/` and matching SHA-256 | |
-| **S4** Analysis | tested, logged, leakage-aware pipeline + robustness | a successful logged run and a passing logged test run after the freeze; `analysis/tests/test_*`; non-empty `results/`; last run not failed; **split manifest** `results/splits/*.csv` shows no group in train and test of the same fold | |
-| **S5** Re-computation | second, independent computation of key statistics | every protocol hypothesis covered; methods differ; values within tolerance | |
-| **S6** Figures | one script per figure | every figure in the manifest with an existing script, colour-blind safe, raster ≥300 dpi | |
-| **S7** Manuscript | evidence-bound draft in the golden order | required sections (incl. limitations, data/code availability, AI declaration); no placeholders; **every number** a correct rounding of the exact cell its locator names; **every citation** verified, with a claim-support row whose quote is checked against `literature/text/` when available; **every APA-style test result** recomputed (t, F, χ², r, z) | |
-| **S8** Q1 review | independent reviewer panel + fix loop | four reviewer reports (editor, methods, domain, reproducibility); all 15 rubric dimensions ≥4 with evidence and a non-self reviewer; no open major issue | **yes** |
-| **S9** Submission | cover letter, checklist, archive | cover letter; checklist fully ticked; journal quartile verified by the owner with source and date | **yes** (owner submits) |
-| **S10** Revision | response to reviewers, new analyses | every reviewer comment has a response | |
+| **S0** Proposal | lints and critiques the proposal, suggests sharper framings | write it, accept or reject edits | no placeholders, falsifiable hypotheses with decision rules, data with URL + licence, validation and baselines, neutral questions, agent permission file intact |
+| **S1** Literature | `rosctl search` (logged, raw output kept), counter-evidence and grey/regional searches, `rosctl add-ref` (verified references), `rosctl fetch-text`, closest-work table, novelty verdict | read the 3 closest papers, **approve S1** | ≥10 queries over ≥3 sources, counter-evidence and grey-literature searches, every reference exists, title and metadata match, not retracted, verdict with contrary evidence and search limitations, no prompt injection in sources |
+| **S2** Protocol | drafts the pre-registered analysis plan | check it tests what you care about, **approve S2** (freezes it) | all sections, decision rules, 24 method rules (e.g. ANOVA needs sum-of-squares type, ML needs seeds and baselines, causal questions need identification) |
+| **S3** Data | `rosctl fetch` (download, hash, provenance, read-only), data card, schema, cleaning log | confirm licences and large downloads | hashes match, licences recorded, units/ranges/dates valid, personal data needs an ethics note, every cleaning step logged |
+| **S4** Analysis | pinned environment, `rosctl verify-deps`, tested leakage-free code, runs via `rosctl run` | check results are plausible | logged successful runs and tests, split manifest shows no leakage, no fake-data fallbacks or silenced errors, outputs produced by logged runs and not stale, tests locked |
+| **S5** Re-computation | computes key statistics a second, independent way | — | every hypothesis covered, values agree within tolerance |
+| **S6** Figures | one script per figure, colour-blind safe | judge each figure's message | script exists, produced by a logged run, error-bar type declared, ≥300 dpi for raster |
+| **S7** Manuscript | drafts in the right order; `rosctl provenance --apply`, `rosctl cite-number`, `rosctl log-ai` | revise voice and interpretation | every number traced to an exact cell, every citation verified with a matching quote, p-values recomputed, misleading language blocked, all hypotheses reported, limitations specific, AI use declared |
+| **S8** Review | independent reviewer panel (editor, methods, domain, reproducibility) and fixes | read reviews, answer checklist, spot-check samples, **approve S8** | four reports, at least one reviewer not the drafting model, all 15 rubric scores ≥4 with evidence, no open major issue |
+| **S9** Submission | cover letter, formatting, checklist, archive | verify journal, similarity check, **approve S9**, **submit** | checklist ticked, guide for authors downloaded, journal verified by you |
+| **S10** Revision | response to reviewers, new analyses | decide disagreements, submit | every comment answered, every claimed change really in the manuscript |
 
-Stage playbooks for the agent: [`skills/q1-pipeline/stages/`](skills/q1-pipeline/stages/).
-What you should check before each approval: [docs/PLAYBOOK.md §4](docs/PLAYBOOK.md#4-stage-by-stage-what-to-check-before-you-approve).
+Agent-facing details for each stage: [`skills/q1-pipeline/stages/`](skills/q1-pipeline/stages/).
+What to check before each approval: [docs/PLAYBOOK.md](docs/PLAYBOOK.md).
 
-## 7. `rosctl` command reference
+## 8. Working with Claude Code
+
+1. Open a terminal **in the project folder** and run `claude` (or open that folder in the Claude desktop app).
+   This matters: Claude Code applies the project's permission rules (`.claude/settings.json`) only when the
+   session starts in that folder. Started from a parent folder, it still reads the rules and skills but
+   the protection against editing raw data and self-approval is not active.
+2. Claude Code reads `CLAUDE.md` and finds the five skills in `.claude/skills/` automatically.
+3. Optional literature servers: `cp .mcp.json.example .mcp.json` (needs `./install.sh --with-tools`).
+4. Use the start prompt from section 5.
+
+What the permission file does: it denies the agent editing `data/raw/`, `.ros/` and the ledgers that
+`rosctl` writes, denies `rosctl approve`, `relock-tests` and `ack-injection`, and asks you before any
+package installation or `git push`.
+
+## 9. Working with Antigravity and other agents
+
+**Antigravity:** open the project folder as the workspace. It reads `AGENTS.md` / `GEMINI.md` and the
+skills in `.agents/skills/`. Antigravity also loads any global plugin rules you have installed; the project
+constitution says it wins on conflict. Add the optional MCP servers in Antigravity's settings with the
+same commands as `.mcp.json.example`. Start prompt:
+
+```
+Follow AGENTS.md. Use the q1-pipeline skill in .agents/skills. Start with `rosctl status` and continue from
+the current stage, using the rosctl helpers; stop at each human gate with a checkpoint.
+```
+
+**Gemini CLI, Codex, Cursor and others:** point the agent at `AGENTS.md` and
+`.agents/skills/q1-pipeline/SKILL.md`. The gates are enforced by `rosctl`, not by the agent.
+
+Because all state is in files, you can switch agents at any time, for example draft with one and
+review with another (which is exactly what S8 needs).
+
+## 10. Every command, explained
+
+**Navigation**
 
 | Command | What it does |
 |---|---|
-| `rosctl init <dir> [--domain D] [--extra-skills DIR]` | scaffold a project: constitution ×3, skills for every agent, domain pack, ledgers, git repo. Refuses to overwrite existing files |
-| `rosctl lint-proposal [file]` | check the proposal; prints blockers, warnings and a 0–100 readiness score |
-| `rosctl status` | stage progress and pending approvals |
-| `rosctl gate [STAGE]` | run cumulative checks up to STAGE (default: current); record a pass or clear a stale one |
-| `rosctl approve STAGE [--note]` | **human only**, S1/S2/S8/S9; needs an interactive terminal and a typed phrase; refused inside AI-agent sessions (environment markers, process ancestry); S2 freezes the protocol |
-| `rosctl next` | current blockers grouped by the exact command that fixes them (read-only) |
-| `rosctl search "<q>" [--source S] [--purpose P]` | **network**: search (OpenAlex built in, any paper-search source), save raw output, log the row |
-| `rosctl add-ref <DOI...>` | **network**: registry BibTeX, stable citekey, immediate verification; unresolvable DOIs are never added |
-| `rosctl fetch-text <key...>` | save `literature/text/<key>.txt` with an honest ACCESS header (full text from a local PDF via pdftotext, else abstract-only) |
-| `rosctl fetch <URL> --id D1 --license "..."` | **network**: download into `data/raw/D1/`, hash, provenance row, run log, read-only; never overwrites |
-| `rosctl provenance [--apply]` | find the results cell for each unprovenanced manuscript number; applies only unique matches with >= 3 significant digits |
-| `rosctl log-ai --tool --model --purpose` | append an AI_USAGE_LOG row |
-| `rosctl verify-deps` | **network**: every declared PyPI/CRAN package must exist and be >= 90 days old (anti-slopsquatting); writes `ledgers/DEPENDENCY_VERIFICATION.csv` |
-| `rosctl relock-tests --reason "..."` | **human only**: accept changed tests/evaluation code after S4 (agents are refused) |
-| `rosctl ack-injection <file>` | **human only**: acknowledge an inspected source flagged for prompt injection |
-| `rosctl verify-refs` | **network**: resolve every `refs.bib` DOI at doi.org (Crossref, DataCite, …), compare titles, check OpenAlex retraction status, check URL-only entries; writes `ledgers/REFERENCE_VERIFICATION.csv` |
-| `rosctl run -- <cmd …>` | run a command and append it to `ledgers/RUN_LOG.csv` (time, commit, exit code, duration) |
-| `rosctl hash <paths…>` | print `path,sha256,size` rows for `DATA_PROVENANCE.csv` |
-| `rosctl check <name>` | run one verifier: refs, numbers, citations, stats, splits, recompute, review, manuscript, language, code, schema, outputs, environment, ai-log, cleaning, quotes, metric-split, reviewers, permissions |
-| `rosctl doctor` | check Python, git, uv and optional tools, with install hints |
+| `rosctl init <dir> --domain D` | create a project (never overwrites existing files) |
+| `rosctl status` | which stage you are in and which approvals are pending |
+| `rosctl next` | current blockers grouped by the exact command that fixes them |
+| `rosctl gate [STAGE]` | run all checks up to that stage; record a pass or clear stale passes |
+| `rosctl doctor` | check installed tools |
 
-Exit codes: `0` pass, `1` checks failed, `2` usage error, `3` approval refused (non-interactive).
+**Helpers that write records correctly (use these instead of editing CSV files)**
 
-How `check numbers` works: it extracts decimals, percentages and integers > 10 from the manuscript
-(skipping years, the reference list, `code spans`, `[@cites]`, `[Source: …]`, URLs and
-figure/table/section labels) and requires each to appear as a `value` in `NUMBER_PROVENANCE.csv`.
-Each row's `locator` must resolve to exactly one place (`keycol=keyval:column` or `column` in CSV,
-`$.path.0` in JSON, `line:N` in text) and the value must be a correct rounding of that cell.
-
-How `check stats` works: it finds APA-style results (`t(23) = 2.45, p = .021`, `F(2, 57) = 4.10, p < .05`,
-`χ2(1) = 3.84, p = .05`, `r(40) = .31, p = .045`, `z = 1.96, p = .05`), recomputes p from the statistic
-and degrees of freedom (stdlib incomplete-beta/gamma; max error vs SciPy 8.5e-13 over 2,000 cases),
-allows for rounding, and labels errors that flip significance as DECISION ERRORs.
-
-## 8. Ledgers: the audit trail
-
-| File | Columns | Filled in |
+| Command | What it does | Refuses when |
 |---|---|---|
-| `ledgers/SEARCH_LOG.csv` | date, source, query, filters, hits, screened, included, notes | S1 |
-| `ledgers/REFERENCE_VERIFICATION.csv` | citekey, doi, url, status, title_similarity, registered_title, registered_year, bib_year, is_retracted, source, checked_at | S1, S7 (written by `rosctl verify-refs`) |
-| `results/splits/*.csv` | fold, split, group | S4 (written by your CV code) |
-| `data/SCHEMA.csv` | file, column, type, unit, min, max, date_format, coded_numeric, notes | S3 |
-| `ledgers/DATA_CLEANING_LOG.csv` | step, input_file, output_file, rule, rows_in, rows_out, script, notes | S3-S4 |
-| `ledgers/OUTPUT_MANIFEST.jsonl` | per successful run: outputs (sha256) and analysis inputs (sha256) | S4+ (automatic) |
-| `ledgers/DEPENDENCY_VERIFICATION.csv` | package, ecosystem, status, first_release, latest_version, checked_at | S4 (`verify-deps`) |
-| `ledgers/AI_USAGE_LOG.csv` | timestamp_utc, tool, model, model_version, purpose, prompt_ref, output_ref, notes | all |
-| `literature/CLOSEST_WORK.csv` | citekey, title, year, doi_or_url, what_they_did, data, method, key_result, limitation, overlap_with_us, evidence_location | S1 |
-| `ledgers/DATA_PROVENANCE.csv` | dataset_id, name, source_url, version_or_access_date, license, path, sha256, size_bytes, notes | S3 |
-| `ledgers/RUN_LOG.csv` | timestamp_utc, command, git_commit, exit_code, duration_s, notes | S3–S10 (automatic) |
-| `ledgers/RECOMPUTATION_AUDIT.csv` | stat_id, hypothesis_id, description, primary_value, primary_method, independent_value, independent_method, abs_tolerance, rel_tolerance, status | S5 |
-| `ledgers/FIGURE_MANIFEST.csv` | figure_file, script, data_inputs, message, colorblind_safe, dpi | S6 |
-| `ledgers/NUMBER_PROVENANCE.csv` | number_id, value, manuscript_location, results_file, locator, script, notes | S7 |
-| `ledgers/CLAIM_SUPPORT.csv` | claim_id, manuscript_location, claim_text, citekey, evidence_location, evidence_quote, support_level, checked_by | S1, S7 |
-| `ledgers/DECISION_LOG.csv` | timestamp_utc, stage, decision, options_considered, rationale, decided_by | all |
-| `review/Q1_SCORECARD.csv` | dimension, score, evidence, reviewer | S8 |
-| `review/ISSUES.csv` | issue_id, reviewer, severity, location, issue, action, status, resolution_note | S8 |
-| `submission/JOURNAL_CHECK.csv` | journal, publisher, issn, quartile, quartile_source, checked_date, scope_fit, apc_or_route, ai_policy_url, owner_verified | S9 |
+| `rosctl search "<query>" [--source S] [--purpose P] [--year-from Y]` | searches OpenAlex (built in) or any paper-search source, saves the raw result, logs it; `--purpose` = `main`, `counter-evidence`, `grey/regional`, `snowball` | the search fails (nothing is logged) |
+| `rosctl add-ref <DOI> [<DOI> ...]` | gets the official BibTeX, gives it a stable citekey, verifies it immediately | the DOI does not resolve (never added) |
+| `rosctl fetch-text <citekey> ...` | saves the source text with an honest `ACCESS:` line (full text from your legal PDF in `literature/pdfs/<key>.pdf`, otherwise the abstract) | no text is legally available |
+| `rosctl fetch <URL> --id D1 --license "..." [--max-mb N]` | downloads into `data/raw/D1/`, hashes it, records provenance, makes it read-only | licence missing, file exists, file too large |
+| `rosctl provenance [--apply]` | finds which results cell each manuscript number came from; `--apply` records only unambiguous matches | ambiguous (`CHOOSE`) or no source (`MISSING`) |
+| `rosctl cite-number <value> <file> <locator> --at <place>` | records a chosen number source after checking it | locator or rounding does not match |
+| `rosctl log-ai --tool --model --purpose` | records AI assistance for the disclosure statement | — |
+| `rosctl run -- <command>` | runs your analysis and logs it (time, commit, exit code, outputs) | — (a failed run blocks the gate) |
+| `rosctl hash <paths>` | prints file hashes for manual provenance | — |
 
-These files are also your best defence if a reviewer or editor questions a result.
+**Verification**
 
-## 9. Project layout
+| Command | What it does |
+|---|---|
+| `rosctl lint-proposal` | check the proposal (0–100 readiness score) |
+| `rosctl verify-refs` | re-verify every reference against registries (doi.org, OpenAlex retraction status) |
+| `rosctl verify-deps` | check every declared package exists and is not brand new (anti-"slopsquatting") |
+| `rosctl check <name>` | run one check: `refs`, `numbers`, `citations`, `stats`, `splits`, `recompute`, `review`, `manuscript`, `language`, `code`, `schema`, `outputs`, `environment`, `ai-log`, `cleaning`, `quotes`, `metric-split`, `reviewers`, `permissions` |
+
+**Human only (refused inside AI sessions)**
+
+| Command | What it does |
+|---|---|
+| `rosctl approve S1\|S2\|S8\|S9 [--note]` | your approval, with a short checklist; S2 freezes the protocol; S8 shows a random spot-check |
+| `rosctl relock-tests --reason "..."` | accept changed tests after S4 |
+| `rosctl ack-injection <file>` | confirm you inspected a source flagged for hidden instructions |
+
+## 11. Your approvals: the human checklist
+
+`rosctl approve` asks you to type `yes` to a short list of things only a human can confirm (26 items in
+total), for example:
+
+- **S1:** "I read the three closest papers in full text myself." "Novelty rests on evidence, not on missing search hits."
+- **S2:** "Every protocol constant (doses, varieties, seasons, units) comes from cited official sources."
+- **S8:** "No overstatement: no may→does, lab→field, correlation→causation." "I can explain and defend every analysis myself." Plus a random sample of 3 numbers and 3 claims you must check against the source.
+- **S9:** "Ethics, funding and data-availability statements are true." "No confidential material was sent to AI services that policy forbids."
+
+Typing `yes` means you take responsibility. The checklist is only as strong as your honesty.
+
+---
+
+# Part C — Trust it
+
+## 12. How fabrication and mistakes are blocked
+
+The framework maps **136 known failure modes** of AI-assisted research to concrete controls
+([full matrix](docs/ERROR_CONTROL_MATRIX.md)): 58 automated, fail-closed checks and 26 human checklist
+items. A test fails if any of the 136 lacks a control. Examples:
+
+| Risk | What stops it |
+|---|---|
+| Invented or wrong references | every reference resolved at doi.org; title, year and first author must match; retracted papers blocked |
+| Citing a paper for something it does not say | the quote must be found in the saved source text; reviewers and your spot-check confirm meaning |
+| Numbers nobody computed | every number in the paper must be a correct rounding of one exact cell of a results file produced by a logged run |
+| Results changed after the fact | outputs are fingerprinted per run; stale or hand-edited files block; tests are locked after S4 |
+| Data leakage | split manifests must show no group (site, year, country) in both training and test |
+| Statistical mistakes | p-values recomputed from the reported statistics; ANOVA, mixed-model, ML and causal designs must state their safeguards |
+| Fake data when a file is missing | analysis code with synthetic-data generators or silenced errors is blocked |
+| Hallucinated software packages | packages verified on PyPI/CRAN before installation |
+| Misleading language | "proves", "highly significant", unhedged "first study", ± without SD/SE are blocked |
+| Hidden instructions in PDFs | sources scanned; flagged files blocked until you inspect them |
+| The AI approving its own work | approvals refused in AI sessions; independent reviewers required |
+
+## 13. Ledgers: the audit trail
+
+| File | What it records | Written by |
+|---|---|---|
+| `ledgers/SEARCH_LOG.csv` + `literature/search_raw/` | every search and its raw result | `rosctl search` |
+| `refs/refs.bib` + `ledgers/REFERENCE_VERIFICATION.csv` | references and their registry check | `rosctl add-ref`, `verify-refs` |
+| `literature/text/` | source texts with ACCESS line | `rosctl fetch-text` |
+| `literature/CLOSEST_WORK.csv` | the 10+ closest studies and their overlap | agent |
+| `ledgers/CLAIM_SUPPORT.csv` | for each citation: location, quote, support level | agent |
+| `ledgers/DATA_PROVENANCE.csv` | each dataset: URL, licence, hash | `rosctl fetch` |
+| `data/SCHEMA.csv`, `ledgers/DATA_CLEANING_LOG.csv` | units, ranges, cleaning steps | agent / scripts |
+| `ledgers/RUN_LOG.csv`, `ledgers/OUTPUT_MANIFEST.jsonl` | every run and the files it produced | `rosctl run` |
+| `ledgers/NUMBER_PROVENANCE.csv` | each manuscript number → results cell | `rosctl provenance`, `cite-number` |
+| `ledgers/RECOMPUTATION_AUDIT.csv` | key numbers computed twice | analysis scripts |
+| `ledgers/AI_USAGE_LOG.csv` | AI tools, models, dates, purposes | `rosctl log-ai` |
+| `ledgers/DEPENDENCY_VERIFICATION.csv` | package checks | `rosctl verify-deps` |
+| `ledgers/DECISION_LOG.csv` | every choice between alternatives | agent |
+| `review/` | reviewer reports, scorecard, issues, responses | reviewers |
+| `submission/JOURNAL_CHECK.csv` | journal facts you verified | you |
+
+If an editor questions a result, these files are your answer.
+
+## 14. Evidence: tests, pilot, platforms
+
+- **Tests:** 96 automated tests (unit, control, end-to-end with fault injection), green on Python 3.9, 3.12
+  and 3.13 in CI. Mutation testing: disabling any check makes the tests fail.
+- **Pilot study** ([report](docs/PILOT_2026-11.md)): a real cross-country cereal-yield question run from
+  proposal to manuscript draft in about 48 minutes of agent time. Helpers wrote 80+ records that previously
+  had to be hand-written; the data-schema check caught a genuine error in public FAO data; the pilot also
+  found and fixed three framework bugs. The human gates (S1, S2, S8, S9) were left for the owner, by design.
+- **Claude Code:** rules (`CLAUDE.md`) and the five skills were loaded and invoked at runtime; the approval
+  guard refused. Project permissions apply only when Claude Code is started inside the project folder.
+- **Antigravity (`agy` CLI):** rules and the five skills discovered; the agent named the correct helper
+  commands and the prompt-injection rule. Running commands from headless Antigravity was not verified.
+
+## 15. Honest limits
+
+- **No acceptance guarantee.** Significance, timing and reviewers are outside anyone's control.
+- **Meaning is judged by people.** Whether a cited passage truly supports a claim, or whether a method fits the
+  question, is checked by reviewers and by your checklist, not by code. 31 of the 136 risks keep a high
+  residual risk for this reason (see the matrix).
+- **Pattern-based checks have gaps:** numbers written as words, non-standard statistics notation, new kinds
+  of hidden instructions.
+- **Local files can be forged by someone with full shell access.** The protection is agent permissions and
+  the rules, not cryptography.
+- **Time saved has not been measured against a manual baseline.** The pilot measured agent time only.
+- **Computational research only.** Field and lab data collection are outside the scope.
+
+---
+
+# Part D — Reference
+
+## 16. Project folder layout
 
 ```
 my-paper/
-├── AGENTS.md  CLAUDE.md  GEMINI.md     constitution (identical copies)
-├── PROPOSAL.md                         your brief
-├── .claude/skills/  .agents/skills/  .agent/skills/
-├── .ros/            state.json · domain/ · core/ (rubric, constitution)   ← rosctl only
-├── literature/      SEARCH_PROTOCOL.md · CLOSEST_WORK.csv · NOVELTY_VERDICT.md · pdfs/ (git-ignored)
-├── protocol/        PROTOCOL.md (frozen at S2; append-only Deviations)
-├── data/            raw/ (read-only, git-ignored, hashed) · processed/ · DATA_CARD.md
-├── analysis/        scripts · lib/ · tests/ · run_all.sh · uv.lock
-├── results/         script outputs only
-├── manuscript/      manuscript.md · figures/ · tables/
-├── refs/            refs.bib
-├── ledgers/         audit trail (section 8)
-├── review/          scorecard · issues · reviewer reports · response letter
-└── submission/      cover letter · checklist · journal check
+├── PROPOSAL.md                          your research brief
+├── AGENTS.md  CLAUDE.md  GEMINI.md      the rules every agent follows (identical copies)
+├── .claude/settings.json                Claude Code permission rules
+├── .claude/skills/ .agents/skills/ .agent/skills/   the five q1-* skills (+ optional extras)
+├── .ros/                                state, domain pack, rubric, controls (rosctl only)
+├── literature/   SEARCH_PROTOCOL.md · search_raw/ · text/ · CLOSEST_WORK.csv · NOVELTY_VERDICT.md · pdfs/
+├── protocol/     PROTOCOL.md (frozen at S2; changes only under "Deviations")
+├── data/         raw/ (read-only, hashed) · processed/ · DATA_CARD.md · SCHEMA.csv
+├── analysis/     scripts · tests/ · recompute/
+├── results/      outputs of logged runs only · splits/
+├── manuscript/   manuscript.md · figures/ · tables/
+├── refs/         refs.bib
+├── ledgers/      the audit trail (section 13)
+├── review/       reviewer reports · scorecard · issues · response letter
+└── submission/   cover letter · checklist · journal check · guide for authors
 ```
 
-## 10. Domain packs and adding your discipline
+## 17. Domain packs and adding your discipline
 
-A domain pack is six Markdown files copied into each project as `.ros/domain/`:
+Each pack has six files copied into `.ros/domain/`: `DOMAIN.md` (subfields, what makes work Q1, search
+vocabulary), `DATASETS.md`, `METHODS.md` (expected baselines), `PITFALLS.md`, `REPORTING.md` (reporting
+guidelines such as TRIPOD+AI, STROBE, PRISMA 2020), `JOURNALS.md` (no quartile claims: verify yourself).
 
-| File | Content |
+Included: **agriculture** (13 subfields from agronomy to agricultural economics and AI) and
+**software-engineering**. To add yours: copy `domains/_template/` to `domains/<your-field>/`, fill the six
+files with real, checkable information, and open a pull request.
+
+## 18. Troubleshooting
+
+| Problem | Fix |
 |---|---|
-| `DOMAIN.md` | subfield map, what makes a paper Q1 in this field, search vocabulary, framing templates |
-| `DATASETS.md` | open data sources by subfield, with access routes |
-| `METHODS.md` | standard methods and the baselines reviewers expect |
-| `PITFALLS.md` | leakage and validity traps, how reviewers detect them, the control to use |
-| `REPORTING.md` | reporting guidelines (TRIPOD+AI, STROBE, PRISMA 2020, REFORMS, MIAPPE, ODD, …) |
-| `JOURNALS.md` | venue map (quartiles deliberately omitted: verify at submission) |
+| `rosctl: command not found` | add `~/.local/bin` to PATH, open a new terminal |
+| `approve` says REFUSED | run it in your own terminal app, not the agent's |
+| "not verified against a registry" | `rosctl verify-refs` (needs internet) |
+| "no saved source text" | `rosctl fetch-text <citekey>` |
+| "has no row in NUMBER_PROVENANCE" | `rosctl provenance --apply`, then `cite-number` for `CHOOSE` items |
+| "not produced by a logged run" / "STALE" | regenerate with `rosctl run -- <script>` |
+| "PROTOCOL.md changed after freeze" | restore it; record changes only under "Deviations" |
+| "sha256 mismatch" | raw data changed; restore it from the source |
+| "dependency not verified" | `rosctl verify-deps` before installing |
+| "possible prompt injection" | read the file yourself, then `rosctl ack-injection <file>` |
+| Agent edits raw data despite permissions | start Claude Code inside the project folder |
+| Anything else | `rosctl next` groups every blocker with its fix |
 
-**Included:** `agriculture` covers agronomy and crop modelling, climate impacts, remote sensing and
-digital agriculture, soil, water and irrigation, breeding and genomics, plant protection, livestock,
-fisheries and aquaculture, agricultural economics and policy, food systems, sustainability, and
-agricultural AI/software. `software-engineering` covers empirical SE and research-software quality.
+More: [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md#7-troubleshooting).
 
-**Add your discipline:** copy `domains/_template/` to `domains/<your-field>/`, fill the six files
-(with real, checkable URLs and no quartile claims), and open a pull request. Then
-`rosctl init <dir> --domain <your-field>`.
+## 19. FAQ
 
-## 11. Using it with Claude Code, Antigravity and other agents
+**How much work does the AI really do?** In the pilot, the agent did all searching, downloading, coding,
+re-computation, figures and drafting, and the helpers wrote the records. The remaining human work is the
+research question, reading key papers, four approvals, arranging independent review and submitting.
+"Hours saved" against a manual baseline has not been measured yet.
 
-| Agent | Rules file it reads | Skills folder | Notes |
-|---|---|---|---|
-| Claude Code | `CLAUDE.md` | `.claude/skills/` | project `.claude/settings.json` denies edits to raw data, `.ros/` and rosctl ledgers, and denies `rosctl approve`; installs ask first. Optional MCP: `cp .mcp.json.example .mcp.json` |
-| Antigravity | `AGENTS.md` / `GEMINI.md` | `.agents/skills/` (and `.agent/skills/`) | runtime-verified with the `agy` CLI (rules loaded, 5 skills discovered and read); global plugin rules also load, the project constitution wins on conflict |
-| Gemini CLI, Codex, Cursor, others | `AGENTS.md` / `GEMINI.md` | point the agent at `.agents/skills/q1-pipeline/SKILL.md` | gates still enforced by `rosctl` |
+**Can I use it for my discipline?** Yes, the pipeline is discipline-agnostic. Use `--domain _template` and
+fill your own pack for the best guidance.
 
-Because all state lives in files, you can draft in one agent and review in another; this is
-also an easy way to get the **independent** reviewers S5 and S8 require.
+**Does it work offline?** The gates work offline. Searching, adding references, downloading and verifying
+need internet.
 
-## 12. Optional ecosystem
+**Can I skip a stage?** No. Gates are cumulative. If a check truly does not apply, record why in
+`ledgers/DECISION_LOG.csv` and open an issue.
 
-| Component | Install | Role |
-|---|---|---|
-| paper-search-mcp | `./install.sh --with-tools` | multi-source search CLI + MCP (OpenAlex, Crossref, Semantic Scholar, arXiv, PubMed, CORE, DOAJ, …) |
-| PaperQA2 (`pqa`) | `--with-tools` | cited question answering over your PDFs (needs an LLM key) |
-| academic-refchecker, bibvet | `--with-tools` | reference existence and BibTeX metadata audits |
-| zotero-mcp | `--with-tools` | Zotero library access for the agent |
-| OpenAlex snowballing script | built in (`skills/q1-literature/scripts/`) | free forward/backward citation search, stdlib only |
-| K-Dense scientific skills (23 curated) + claude-scholar (6 curated) | `./install.sh --with-extras` | statistics, visualisation, writing, peer review, citation management, geospatial, Bayesian modelling, anti-AI-style writing |
+**Is my data sent anywhere?** Only to the services you call (OpenAlex, doi.org, Crossref, PyPI, data
+sources). Never upload confidential data or manuscripts to AI services your institution or journal forbids.
 
-Versions are pinned in [`tools.lock`](tools.lock).
-
-## 13. The Q1 quality model
-
-[`core/Q1_RUBRIC.md`](core/Q1_RUBRIC.md) defines 15 dimensions (significance, novelty, positioning,
-design validity, external validity, statistical rigour, baselines, robustness, reproducibility,
-reporting standards, clarity, figures, limitations honesty, implications, journal fit) with anchors
-for 3 ("major revision") and 5 ("accept"), a six-question **desk-reject simulation**, and the most
-common reasons Q1 papers are rejected. S8 requires every dimension ≥ 4 with written evidence from
-independent reviewers.
-
-## 14. Honest limits
-
-- **No guarantee of acceptance.** The framework removes avoidable reasons for rejection; significance,
-  timing and reviewers remain outside anyone's control.
-- **Designed for computational and secondary-data research.** Experimental data collection, ethics
-  approvals and fieldwork are out of scope (the protocol, provenance and writing parts still help).
-- **Heuristic checkers.** `check numbers` and `check stats` use pattern matching: numbers written as
-  words, or statistics in non-APA formats, are not caught. A quote is machine-checked only when the
-  source text is saved in `literature/text/`. Whether a cited passage *semantically* supports a claim
-  is judged by reviewers, not by code.
-- **Gates stop shortcuts, not determined fraud.** An agent could still fabricate a results file plus
-  matching ledgers, or name a second method that is not truly independent. Defences: every result must
-  come from a logged `rosctl run`, re-computation and review must come from fresh sessions, and the
-  reproducibility reviewer re-runs the pipeline from a clean clone. Approval checks are defence in
-  depth, not proof of humanity.
-- **Local state can be forged by a process with shell access.** `.ros/state.json` and the rosctl-written
-  ledgers are protected by agent permissions (Claude Code deny rules) and the constitution, not by
-  cryptography. 31 of the 136 errors keep a high residual risk (mostly semantic judgement); see the matrix.
-- **Third-party tools change.** Pinned versions reduce, but do not remove, breakage risk.
-- **You remain the author.** Accountability, interpretation and submission are yours.
-
-## 15. Repository layout
+## 20. Repository layout, contributing, citation, license
 
 ```
 q1-research-os/
-├── bin/rosctl.py               gatekeeper CLI (stdlib only)
-├── core/                       CONSTITUTION.md · Q1_RUBRIC.md
-├── skills/                     q1-pipeline (+ stages/S0…S10) · q1-proposal · q1-literature · q1-verify · q1-review
-├── domains/                    agriculture · software-engineering · _template
-├── templates/project/          what `rosctl init` copies (PROPOSAL, PROTOCOL, ledgers, manuscript, …)
-├── examples/                   worked proposal(s)
-├── docs/                       SETUP_GUIDE · PLAYBOOK · PROPOSAL_GUIDE
-├── tests/                      unit tests for rosctl
-├── install.sh                  installer (rosctl, optional tools, curated extra skills)
-└── tools.lock                  pinned third-party versions
+├── bin/          rosctl.py (gates, commands) · rosqa.py (content checks) · rosrefs.py (references, packages)
+│                 rosstats.py (p-value engine) · rosauto.py (helpers) · gen_matrix_doc.py
+├── core/         CONSTITUTION.md · Q1_RUBRIC.md · CONTROLS.csv · ERROR_CONTROLS.csv
+├── skills/       q1-pipeline (+ stages S0…S10) · q1-proposal · q1-literature · q1-verify · q1-review
+├── domains/      agriculture · software-engineering · _template
+├── templates/    the project skeleton copied by `rosctl init`
+├── examples/     worked proposal
+├── docs/         SETUP_GUIDE · PLAYBOOK · PROPOSAL_GUIDE · ERROR_CONTROL_MATRIX · PILOT_2026-11
+├── tests/        96 tests
+├── install.sh · tools.lock · RELEASE_POLICY.md · CHANGELOG.md · CITATION.cff · LICENSE
 ```
 
-## 16. Contributing, citation, license, credits
-
-- **Contributing:** see [CONTRIBUTING.md](CONTRIBUTING.md). Domain packs, new gate checks with tests,
-  and worked examples are especially welcome.
-- **Citation:** see [CITATION.cff](CITATION.cff). Please also declare the framework in your paper's
-  AI-use statement.
-- **License:** MIT.
-- **Credits:** this framework orchestrates and builds on excellent open-source work, including
-  [K-Dense scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills),
-  [claude-scholar](https://github.com/Galaxy-Dawn/claude-scholar),
-  [PaperQA2](https://github.com/Future-House/paper-qa),
-  [paper-search-mcp](https://github.com/openags/paper-search-mcp),
-  [refchecker](https://github.com/markrussinovich/refchecker),
-  [bibvet](https://github.com/dipta007/bibvet),
-  [zotero-mcp](https://github.com/54yyyu/zotero-mcp) and the [OpenAlex](https://openalex.org/) API.
-  Third-party components keep their own licenses and are fetched, not redistributed.
-
-## Who does what at each stage (v1.3)
-
-**AI-full** = the agent does it end to end and a gate verifies it. **AI-partial** = the agent drafts or proposes,
-a check or a person decides. **Human** = only the owner can do it; `rosctl` enforces that.
-
-| Stage | AI-full (verified by code) | AI-partial | Human (enforced) |
-|---|---|---|---|
-| S0 Proposal | lint, hype/leading-question detection | critique, sharper framings | the question, the hypotheses, accepting edits |
-| S1 Literature | `rosctl search` (raw output + log), `add-ref` (registry BibTeX + verification), `fetch-text` (ACCESS-declared text), retraction/metadata/preprint checks | screening, closest-work table, novelty verdict | read closest papers, judge novelty (H01-H05), `approve S1` |
-| S2 Protocol | 24 method-requirement rules, freeze hash | drafting the protocol | design and model choices (H06-H09), `approve S2` |
-| S3 Data | `rosctl fetch` (download, hash, provenance, read-only), schema/unit/date/PII scans | dataset discovery, cleaning code | licence reading, ethics |
-| S4 Analysis | logged runs, output manifest, split leakage audit, code hygiene, dependency verification, test lock | writing analysis code and tests | relocking tests (with reason) |
-| S5 Re-computation | tolerance comparison | independent re-implementation (fresh session) | none |
-| S6 Figures | script/run provenance, dpi, error-bar type | figure design, captions | judging the message |
-| S7 Manuscript | `rosctl provenance --apply` (unique matches), number/citation/quote/p-value/language checks, AI log | drafting text, choosing ambiguous number cells | voice, interpretation |
-| S8 Review | four reports present, reviewer diversity, scorecard rules | the reviews themselves | checklist H10-H21 + random spot-check, `approve S8` |
-| S9 Submission | checklist, guide-for-authors and journal-check presence | cover letter, formatting | journal verification, similarity check, H22-H26, **submitting** |
-
-Ledger rows the helpers now write that v1.2 required by hand: every SEARCH_LOG row and raw file, every BibTeX
-entry and verification row, every source-text file with its ACCESS header, every DATA_PROVENANCE row (with hash),
-unique NUMBER_PROVENANCE rows, and AI_USAGE_LOG rows. Still manual by design: screening decisions, CLOSEST_WORK,
-CLAIM_SUPPORT quotes (a person or agent must read the passage), ambiguous number cells.
+- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md). Never weaken a check to make something pass;
+  open an issue about the false positive instead. Releases follow [RELEASE_POLICY.md](RELEASE_POLICY.md).
+- **Citation:** [CITATION.cff](CITATION.cff); also declare the framework in your AI-use statement.
+- **License:** MIT. Built on open-source work including K-Dense scientific-agent-skills, claude-scholar,
+  PaperQA2, paper-search-mcp, refchecker, bibvet, zotero-mcp, OpenAlex, Crossref and doi.org.

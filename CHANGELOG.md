@@ -11,7 +11,11 @@ Productivity release: the v1.2 gates required many hand-written ledger rows; hel
 - `rosctl provenance [--apply]`: candidate results cells for every unprovenanced number; applies only unique matches with >= 3 significant digits and a known producing script; reports CHOOSE/MISSING.
 - `rosctl log-ai`, `rosctl next` (blockers grouped by fix command).
 - Skills and stage playbooks direct agents to the helpers; per-stage automation table in README and PLAYBOOK.
-- Tests: 81 -> 93; mutation testing 32/32 killed (incl. helpers).
+- Tests: 81 -> 96; mutation testing 32/32 killed (incl. helpers).
+- Pilot study fixes: OpenAlex truncated chunked responses (field selection + retry), negative cells lost their
+  sign in number matching, classification rule false positive narrowed, `rosctl cite-number` for validated
+  manual choices, `provenance` also searches the frozen protocol. Report: docs/PILOT_2026-11.md.
+- README rewritten as a complete beginner guide.
 
 ## 1.2.0 (2026-11-14)
 
