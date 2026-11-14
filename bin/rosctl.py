@@ -1195,7 +1195,10 @@ def find_root(start: Path) -> Path:
     for p in [start, *start.parents]:
         if (p / STATE_FILE).exists():
             return p
-    raise SystemExit("error: not inside a Q1 Research OS project (no .ros/state.json). Use `rosctl init <dir>`.")
+    nearby = sorted(p.parent.parent for p in start.glob("*/.ros/state.json"))
+    hint = "".join(f"\n  cd {p} && rosctl <command>" for p in nearby[:5])
+    raise SystemExit("error: not inside a Q1 Research OS project (no .ros/state.json)."
+                     + (f" Projects found below this folder:{hint}" if nearby else " Use `rosctl init <dir>`."))
 
 
 def current_stage(state: dict) -> str:
