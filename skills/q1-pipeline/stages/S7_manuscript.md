@@ -27,6 +27,8 @@ Keywords / Highlights → statements (data, code, AI use, CRediT, competing inte
 
 ## Mechanics
 
+After editing text, run `rosctl provenance --apply`: it re-points ledger rows whose line moved (C60).
+
 1. Draft ≤ 800 words at a time in `manuscript/manuscript.md` (or one file per section; files starting
    with `_` are ignored by checks).
 2. While drafting, bind sources: `[@citekey]` or `[Source: results/<file>]`. Copy numbers from results

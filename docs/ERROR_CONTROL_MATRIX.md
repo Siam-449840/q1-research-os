@@ -48,7 +48,7 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | 36 | Dataset | Assuming representativeness | H11 | mandatory human gate | high |
 | 37 | Dataset | Ignoring license and privacy | C26, C28, H22 | fail-closed gate + human gate | medium |
 | 38 | Statistics | Mental arithmetic instead of code | C39, C29 | fail-closed gate | low |
-| 39 | Statistics | Text numbers differ from code output | C39 | fail-closed gate | low |
+| 39 | Statistics | Text numbers differ from code output | C39, C60 | fail-closed gate | low |
 | 40 | Statistics | Unchecked test assumptions | C24, H09 | fail-closed gate + human gate | medium |
 | 41 | Statistics | p-value misinterpretation | C11 | fail-closed gate | medium |
 | 42 | Statistics | No multiple-comparison correction | C24, C23, H09 | fail-closed gate + human gate | medium |
@@ -111,7 +111,7 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | 99 | Agent behaviour | Modifying evaluation code or thresholds | C35, C23, C54 | fail-closed gate | medium |
 | 100 | Agent behaviour | Fallback to fake data when files are missing | C31 | fail-closed gate | low |
 | 101 | Agent behaviour | Swallowing errors | C31 | fail-closed gate | low |
-| 102 | Agent behaviour | Reading stale outputs | C30 | fail-closed gate | low |
+| 102 | Agent behaviour | Reading stale outputs | C30, C60 | fail-closed gate | low |
 | 103 | Agent behaviour | Hidden analysis branches (forking paths) | C29, C23, C59, H17 | fail-closed gate + human gate | medium |
 | 104 | Agent behaviour | Overwriting raw data | C25, C54 | fail-closed gate | low |
 | 105 | Agent behaviour | Installing hallucinated packages (slopsquatting) | C34, C54 | fail-closed gate | low |
@@ -210,6 +210,7 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | C57 | auto | S0 | `run_stage_checks` | Cumulative gates; regression clears later passes |
 | C58 | auto | S3 | `check_cleaning_log` | Processed data require a cleaning log (rows in/out, rule, script) |
 | C59 | auto | S7 | `check_execution` | Every pre-registered analysis (A#) executed by a logged run or recorded as a deviation; false no-deviation claims blocked |
+| C60 | auto | S7 | `check_numbers` | Each provenance row with a file:line location must still find its value on that manuscript line (no stale bindings after edits) |
 | H01 | human | S1 | `rosctl approve S1` | I read the three closest papers in full text myself (not only abstracts or AI summaries). |
 | H02 | human | S1 | `rosctl approve S1` | Novelty rests on evidence, not on missing search hits; the contrary evidence was examined; the method is not an old one renamed. |
 | H03 | human | S1 | `rosctl approve S1` | Regional, grey and non-English sources relevant to the setting (national institutes, theses, reports) were searched. |

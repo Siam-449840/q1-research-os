@@ -37,7 +37,7 @@ error_id,category,error,controls,enforcement,residual_risk
 36,Dataset,Assuming representativeness,H11,mandatory human gate,high
 37,Dataset,Ignoring license and privacy,C26;C28;H22,fail-closed gate + human gate,medium
 38,Statistics,Mental arithmetic instead of code,C39;C29,fail-closed gate,low
-39,Statistics,Text numbers differ from code output,C39,fail-closed gate,low
+39,Statistics,Text numbers differ from code output,C39;C60,fail-closed gate,low
 40,Statistics,Unchecked test assumptions,C24;H09,fail-closed gate + human gate,medium
 41,Statistics,p-value misinterpretation,C11,fail-closed gate,medium
 42,Statistics,No multiple-comparison correction,C24;C23;H09,fail-closed gate + human gate,medium
@@ -100,7 +100,7 @@ error_id,category,error,controls,enforcement,residual_risk
 99,Agent behaviour,Modifying evaluation code or thresholds,C35;C23;C54,fail-closed gate,medium
 100,Agent behaviour,Fallback to fake data when files are missing,C31,fail-closed gate,low
 101,Agent behaviour,Swallowing errors,C31,fail-closed gate,low
-102,Agent behaviour,Reading stale outputs,C30,fail-closed gate,low
+102,Agent behaviour,Reading stale outputs,C30;C60,fail-closed gate,low
 103,Agent behaviour,Hidden analysis branches (forking paths),C29;C23;C59;H17,fail-closed gate + human gate,medium
 104,Agent behaviour,Overwriting raw data,C25;C54,fail-closed gate,low
 105,Agent behaviour,Installing hallucinated packages (slopsquatting),C34;C54,fail-closed gate,low

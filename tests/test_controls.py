@@ -289,6 +289,46 @@ class TestManuscriptControls(ProjectCase):
         self.assertIn("borrowed.png was not produced", blockers(rosctl.check_outputs(self.proj)))
 
 
+class TestProvenanceLocation(ProjectCase):
+    def test_provenance_row_whose_manuscript_line_no_longer_holds_the_value_is_blocked(self):
+        self.write("analysis/make.py", "open('results/r.csv','w').write('m,v\\nx,1.5\\n')\n")
+        quiet(rosctl.main, ["run", "--", sys.executable, "analysis/make.py"])
+        self.write("manuscript/manuscript.md", "# T\n\n```\ncode\n```\nRMSE was 1.5 t/ha.\n")
+        self.write("ledgers/NUMBER_PROVENANCE.csv", "number_id,value,manuscript_location,results_file,locator,script,notes\n"
+                   "n1,1.5,manuscript/manuscript.md:6,results/r.csv,m=x:v,analysis/make.py,\n")
+        self.assertNotIn("not on manuscript", " ".join(rosctl.check_numbers(self.proj).blockers))  # code block keeps lines
+        self.write("manuscript/manuscript.md", "# T\n\nA new paragraph was inserted.\n\n```\ncode\n```\nRMSE was 1.5 t/ha.\n")
+        self.assertIn("not on manuscript/manuscript.md:6", blockers(rosctl.check_numbers(self.proj)))
+
+    def test_provenance_apply_moves_shifted_rows_in_reading_order_and_leaves_ambiguous_ones(self):
+        self.write("analysis/make.py", "open('results/r.csv','w').write('m,v\\nx,1.5\\ny,2.75\\n')\n")
+        quiet(rosctl.main, ["run", "--", sys.executable, "analysis/make.py"])
+        self.write("manuscript/manuscript.md", "# T\n\nRMSE was 1.5 t/ha.\nAgain 1.5 t/ha, and 2.75 t/ha.\n")
+        self.write("ledgers/NUMBER_PROVENANCE.csv", "number_id,value,manuscript_location,results_file,locator,script,notes\n"
+                   "n1,1.5,manuscript/manuscript.md:3,results/r.csv,m=x:v,analysis/make.py,\n"
+                   "n2,1.5,manuscript/manuscript.md:4,results/r.csv,m=x:v,analysis/make.py,\n"
+                   "n3,2.75,manuscript/manuscript.md:4,results/r.csv,m=y:v,analysis/make.py,\n")
+        self.write("manuscript/manuscript.md", "# T\n\nInserted.\n\nRMSE was 1.5 t/ha.\nAgain 1.5 t/ha, and 2.75 t/ha.\n")
+        quiet(rosctl.main, ["provenance", "--apply"])
+        locs = [r["manuscript_location"] for r in rosctl.read_csv(self.proj / "ledgers/NUMBER_PROVENANCE.csv")]
+        self.assertEqual(locs, ["manuscript/manuscript.md:5", "manuscript/manuscript.md:6", "manuscript/manuscript.md:6"])
+        self.assertEqual(rosctl.check_numbers(self.proj).blockers, [])
+        self.write("manuscript/manuscript.md", "# T\n\nRMSE was 1.5 t/ha.\n\nAgain 2.75 t/ha.\n")  # one 1.5 removed
+        quiet(rosctl.main, ["provenance", "--apply"])
+        self.assertIn("not on manuscript", " ".join(rosctl.check_numbers(self.proj).blockers))  # never guessed
+
+    def test_value_repeated_on_two_lines_with_one_row_follows_the_nearest_unambiguous_shift(self):
+        self.write("analysis/make.py", "open('results/r.csv','w').write('m,v\\nx,1.5\\ny,2.75\\n')\n")
+        quiet(rosctl.main, ["run", "--", sys.executable, "analysis/make.py"])
+        self.write("ledgers/NUMBER_PROVENANCE.csv", "number_id,value,manuscript_location,results_file,locator,script,notes\n"
+                   "n1,1.5,manuscript/manuscript.md:5,results/r.csv,m=x:v,analysis/make.py,\n"
+                   "n2,2.75,manuscript/manuscript.md:6,results/r.csv,m=y:v,analysis/make.py,\n")
+        self.write("manuscript/manuscript.md", "# T\n\nAbstract: 1.5 t/ha.\n\nInserted.\n\nRMSE was 1.5 t/ha.\nThen 2.75 t/ha.\n")
+        quiet(rosctl.main, ["provenance", "--apply"])  # 2.75 moved 6->8, so 1.5 follows 5->7, not the abstract line 3
+        locs = [r["manuscript_location"] for r in rosctl.read_csv(self.proj / "ledgers/NUMBER_PROVENANCE.csv")]
+        self.assertEqual(locs, ["manuscript/manuscript.md:7", "manuscript/manuscript.md:8"])
+
+
 class TestProtocolExecution(ProjectCase):
     def test_unexecuted_preregistered_analysis_and_false_no_deviation_claim_are_blocked(self):
         self.write("protocol/PROTOCOL.md", "## 7. Robustness\nA1 primary model. A2 sensitivity excluding top 10%.\n## 11. Deviations\nNone yet.\n")

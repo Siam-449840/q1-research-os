@@ -21,6 +21,10 @@ Productivity release: the v1.2 gates required many hand-written ledger rows; hel
   the pilot's independent review, which caught four omitted pre-registered analyses the gates had passed.
 - `rosctl run` now records outputs rewritten with identical bytes, so a deterministic re-run after a code edit
   clears the STALE block (pilot finding).
+- C60 location-checked provenance: a `file.md:N` row must still find its value on that line, so edits cannot leave
+  rows bound to old text (the pilot's second review found 28 such rows). `rosctl provenance --apply` re-points
+  shifted rows (same-value rows in reading order; otherwise the nearest unambiguous shift) and never guesses beyond
+  that. Line numbers now stay valid across fenced code blocks and HTML comments. Tests 102.
 
 ## 1.2.0 (2026-11-14)
 
