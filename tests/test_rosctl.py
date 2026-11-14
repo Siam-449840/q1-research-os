@@ -215,6 +215,17 @@ class TestGatesAndApprovals(ProjectCase):
         self.assertEqual(code, 0, out)
         self.assertIn("S0", self.state()["passed"])
 
+    def test_failed_gate_clears_its_own_and_all_later_passes_so_status_never_lies(self):
+        self.write("PROPOSAL.md", EXAMPLE.read_text())
+        quiet(rosctl.main, ["gate", "S0"])
+        state = self.state()
+        state["passed"]["S1"] = {"at": "x", "commit": "y"}
+        rosctl.save_state(self.proj, state)
+        self.write("PROPOSAL.md", "# broken\n")
+        code, _ = quiet(rosctl.main, ["gate", "S0"])
+        self.assertEqual(code, 1)
+        self.assertEqual(self.state()["passed"], {})
+
     def test_later_gate_requires_earlier_owner_approvals(self):
         self.write("PROPOSAL.md", EXAMPLE.read_text())
         code, out = quiet(rosctl.main, ["gate", "S3"])

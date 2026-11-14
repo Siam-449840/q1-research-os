@@ -790,7 +790,8 @@ def cmd_gate(args: argparse.Namespace) -> int:
         save_state(root, state)
         print(f"{stage} PASSED. Next stage: {current_stage(state)}")
         return 0
-    state.get("passed", {}).pop(stage, None)
+    for later in STAGES[STAGES.index(stage):]:  # a regression invalidates every later pass too
+        state.get("passed", {}).pop(later, None)
     save_state(root, state)
     return 1
 
