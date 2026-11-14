@@ -1339,7 +1339,7 @@ def cmd_approve(args: argparse.Namespace) -> int:
             return 1
     phrase = f"I APPROVE {stage}"
     if input(f"You are the accountable researcher. Type exactly '{phrase}': ").strip() != phrase:
-        print("Not approved.")
+        print(f"Not approved: the final confirmation must be the exact sentence '{phrase}'. Nothing was recorded.")
         return 1
     record_approval(root, state, stage, args.note or "", checklist, spots)
     print(f"{stage} approved. Now run `rosctl gate {stage}`.")
