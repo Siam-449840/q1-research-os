@@ -87,6 +87,19 @@ class TestTextHelper(ProjectCase):
         self.assertTrue(text.startswith("ACCESS: abstract-only"))
         self.assertIn("Spatial blocking reduces optimism", text)
 
+    def test_fetch_text_command_records_texts_so_only_fetched_texts_pass(self):
+        rosauto.add_reference(self.proj, "10.1111/ecog.02881", registry)
+        original = rosctl.rosrefs.http_fetch
+        rosctl.rosrefs.http_fetch = registry
+        try:
+            quiet(rosctl.main, ["fetch-text", "roberts2017cross"])
+        finally:
+            rosctl.rosrefs.http_fetch = original
+        out = [b for b in rosctl.check_outputs(self.proj).blockers if "literature/text" in b]
+        self.assertEqual(out, [])
+        self.write("literature/text/roberts2017cross.txt", "ACCESS: full-text\ninvented quote\n")
+        self.assertIn("rosctl fetch-text", " ".join(rosctl.check_outputs(self.proj).blockers))
+
     def test_fetch_text_refuses_unknown_key(self):
         with self.assertRaises(RuntimeError):
             rosauto.fetch_text(self.proj, "ghost2020", registry)

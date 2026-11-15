@@ -101,6 +101,26 @@ def _annotated(lines: List[str], i: int, kind: str) -> bool:
     return False
 
 
+WRITES_RESULTS = re.compile(r"""(?:open\(\s*f?['"]results/[^'"]*['"]\s*,\s*['"][wa]|['"]results/[^'"]*['"][^\n]*"""
+                            r"""(?:to_csv|to_json|to_parquet|json\.dump|savefig|write_text|np\.save|write\.csv|saveRDS|fwrite|ggsave|writeLines))"""
+                            r"""|(?:to_csv|to_json|to_parquet|json\.dump|savefig|np\.save|write\.csv|saveRDS|fwrite|ggsave|writeLines)"""
+                            r"""\([^\n]*['"]results/""")
+READS_INPUT = re.compile(r"""read_csv|read_table|read_excel|read_parquet|read_json|read_feather|read_stata|read_sas|read_spss|"""
+                         r"""\bload\w*\(|genfromtxt|csv\.(?:Dict)?[Rr]eader|import_module|read_text\(|\.read\(\)|"""
+                         r"""read\.csv|read\.table|readRDS|fread\(|read_sf|rasterio\.open|xr\.open|nc\.Dataset|h5py\.File|sqlite3\.connect""")
+OPEN_CALL = re.compile(r"""open\(([^()]*)\)""")
+
+
+def _reads_input(text: str) -> bool:
+    if READS_INPUT.search(text):
+        return True
+    for args in OPEN_CALL.findall(text):  # open(path) or open(path, "r"/"rb") reads; "w"/"a" modes do not
+        mode = re.search(r""",\s*(?:mode\s*=\s*)?['"]([rwaxb+t]+)['"]""", args)
+        if not mode or "r" in mode.group(1):
+            return True
+    return False
+
+
 def check_code(files: List[Path], root: Path) -> Findings:
     blockers: List[str] = []
     for f in files:
@@ -118,6 +138,10 @@ def check_code(files: List[Path], root: Path) -> Findings:
             if IGNORE_WARNINGS.search(line) and not _annotated(lines, i, "warnings"):
                 blockers.append(f"{rel}:{i + 1} warnings globally suppressed [E101]")
         text = "\n".join(lines)
+        if (WRITES_RESULTS.search(text) and not _reads_input(text) and "ros: allow-no-input" not in text
+                and "tests" not in rel.parts):
+            blockers.append(f"{rel} writes to results/ but reads no data or upstream file: results must be computed, never "
+                            f"typed in (simulation studies: annotate '# ros: allow-no-input <reason>') [E31,E100]")
         if f.suffix.lower() == ".r" and R_SILENT.search(text):
             blockers.append(f"{rel} tryCatch returns NULL/NA on error (silent failure) [E101]")
     return blockers, []

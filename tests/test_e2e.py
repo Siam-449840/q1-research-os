@@ -220,8 +220,10 @@ class TestEndToEnd(ProjectCase):
         self.write("ledgers/CLAIM_SUPPORT.csv", "claim_id,manuscript_location,claim_text,citekey,evidence_location,evidence_quote,support_level,checked_by\n"
                    'c1,Intro,bias,work00,p. 2,"random splits were optimistic",supports,agent\n'
                    'c2,Discussion,gap,work01,p. 5,"spatial gap observed",supports,agent\n')
+        before = rosctl.tracked_outputs(self.proj)  # stands in for `rosctl fetch-text` (needs network / pdftotext)
         self.write("literature/text/work00.txt", "ACCESS: full-text\nWe found that random splits were optimistic for clustered plots.")
         self.write("literature/text/work01.txt", "ACCESS: abstract-only\nA spatial gap observed across regions.")
+        rosctl.record_outputs(self.proj, ["rosctl", "fetch-text", "work00", "work01"], before)
         self.write("ledgers/AI_USAGE_LOG.csv", "timestamp_utc,tool,model,model_version,purpose,prompt_ref,output_ref,notes\n"
                    "2026-11-14T00:00:00Z,Claude Code,claude-opus-5-5,2026-11,drafting manuscript,prompts/p1.md,manuscript/manuscript.md,\n")
         return vals
