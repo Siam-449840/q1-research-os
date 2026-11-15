@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 FRAMEWORK_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(FRAMEWORK_ROOT / "bin"))
 import rosauto  # noqa: E402  (sibling stdlib-only modules)
@@ -35,7 +35,9 @@ import rosstats  # noqa: E402
 REVIEW_ROLES = ["editor", "methods", "domain", "reproducibility"]
 MIN_LIMITATION_WORDS = 120
 OUTPUT_MANIFEST = Path("ledgers/OUTPUT_MANIFEST.jsonl")
-OUTPUT_DIRS = ["results", "manuscript/figures", "manuscript/tables"]
+OUTPUT_DIRS = ["results", "manuscript/figures", "manuscript/tables", "literature/text"]
+# written by independent re-computation scripts, so a typed audit row cannot pass [E40,E42]
+OUTPUT_FILES = ["ledgers/RECOMPUTATION_AUDIT.csv"]
 METRIC_RE = re.compile(r"\b(R2|R²|r-squared|accuracy|RMSE|MAE|AUC|F1|precision|recall|MAPE|NSE|kappa)\b", re.I)
 TRAIN_RE = re.compile(r"\btrain(ing)?\b(?!ed)", re.I)
 GUIDE_GLOB = "GUIDE_FOR_AUTHORS.*"
@@ -77,6 +79,14 @@ MAX_ABSTRACT_WORDS = 300
 SKIP_INT_MAX = 10  # integers <= this are not provenance-checked (counts like "3 sites")
 PLACEHOLDER_RE = re.compile(r"\bTODO\b|\bTBD\b|\bTBA\b|\[VERIFY|\bXXX\b|lorem ipsum|<(?!https?:)[A-Za-z][^<>\n]{1,200}>")
 NUMBER_RE = re.compile(r"(?<![\w.@/])(?:(?<=[\s(=:,])[-−])?\d[\d,]*(?:\.\d+)?%?(?![\w/]|\.\d)")
+LEADING_DOT_RE = re.compile(r"(?<![\w.])\.\d+%?(?![\w/]|\.\d)")  # APA style: r = .85, p < .001
+INEQ_RE = re.compile(r"^\s*([<>≤≥])\s*(.*)$")
+CODE_SPAN_NUMBER_RE = re.compile(r"`\s*[<>≤≥=]?\s*[-−]?(?:\d*\.\d+%?|\d+%)\s*`")  # a result hidden in a code span
+AUTHOR_YEAR_RE = re.compile(r"\(\s*[A-Z][\w'’\-]+(?:\s+(?:et al\.?|and|&)\s*[A-Z]?[\w'’\-]*)?,?\s+(?:19|20)\d{2}[a-z]?\s*[;)]"
+                            r"|\b[A-Z][\w'’\-]+\s+et al\.?\s*\((?:19|20)\d{2}[a-z]?\)")
+LATEX_CITE_RE = re.compile(r"\\(?:cite|citep|citet|parencite|textcite|autocite)\*?\s*(?:\[[^\]]*\])?\s*\{")
+NUMERIC_CITE_RE = re.compile(r"(?<![\w\]])\[\d{1,3}(?:\s*[,–-]\s*\d{1,3})*\](?!\()")
+UNCHECKED_SOURCES = (".tex", ".docx", ".doc", ".rtf", ".odt")
 CITE_RE = re.compile(r"(?<![\w.])@([A-Za-z][\w:.\-]*\w)")
 BIB_ENTRY_RE = re.compile(r"@(\w+)\s*\{\s*([^,\s]+)\s*,(.*?)(?=\n@\w+\s*\{|\Z)", re.S)
 REF_STRIP_RE = re.compile(
@@ -213,8 +223,14 @@ def placeholders(text: str) -> List[str]:
     return sorted({m.group(0) for m in PLACEHOLDER_RE.finditer(strip_code(text))})
 
 
+def split_ineq(token: str) -> Tuple[str, str]:
+    """'<.001' -> ('<', '.001'); '0.85' -> ('', '0.85')."""
+    m = INEQ_RE.match(token)
+    return (m.group(1), m.group(2)) if m else ("", token.strip())
+
+
 def to_float(token: str) -> Optional[float]:
-    t = token.replace(",", "").replace("−", "-").rstrip("%")
+    t = split_ineq(token)[1].replace(",", "").replace("−", "-").rstrip("%")
     try:
         return float(t)
     except ValueError:
@@ -222,7 +238,7 @@ def to_float(token: str) -> Optional[float]:
 
 
 def decimals(token: str) -> int:
-    t = token.rstrip("%")
+    t = split_ineq(token)[1].rstrip("%")
     return len(t.split(".")[1]) if "." in t else 0
 
 
@@ -367,23 +383,28 @@ def manuscript_numbers(text: str) -> List[Tuple[int, str]]:
             continue
         line = re.sub(r"\[@[^\]]*\]|\[Source:[^\]]*\]|\]\([^)]*\)|https?://\S+", " ", line)
         line = REF_STRIP_RE.sub(" ", line)
-        for m in NUMBER_RE.finditer(line):
+        found = sorted(list(NUMBER_RE.finditer(line)) + list(LEADING_DOT_RE.finditer(line)), key=lambda m: m.start())
+        for m in found:
             tok = m.group(0)
             val = to_float(tok)
             if val is None:
                 continue
+            before = line[: m.start()]
             is_int = "." not in tok and not tok.endswith("%")
-            if is_int and (abs(val) <= SKIP_INT_MAX or 1900 <= val <= 2100):
+            is_count = bool(re.search(r"\b[nN]\s*=\s*$", before))  # "n = 2045" is a sample size, not a year
+            if is_int and not is_count and (abs(val) <= SKIP_INT_MAX or 1900 <= val <= 2100):
                 continue
-            out.append((ln, tok))
+            op = re.search(r"([<>≤≥])\s*$", before)
+            out.append((ln, (op.group(1) if op else "") + tok))
     return out
 
 
 def number_matches(token: str, value: str) -> bool:
-    a, b = to_float(token), to_float(value)
-    if a is None or b is None:
+    (op_a, ta), (op_b, tb) = split_ineq(token), split_ineq(value)
+    a, b = to_float(ta), to_float(tb)
+    if a is None or b is None or op_a != op_b:
         return False
-    return abs(a - b) <= 1e-12 or token.replace(",", "") == value.replace(",", "")
+    return abs(a - b) <= 1e-12 or ta.replace(",", "") == tb.replace(",", "")
 
 
 def resolve_locator(path: Path, locator: str) -> Optional[str]:
@@ -425,10 +446,15 @@ def _csv_cell(path: Path, loc: str) -> Optional[str]:
 
 
 def value_matches_cell(value: str, cell: str) -> bool:
-    """Manuscript value must be a correct rounding of a number in the located cell/line."""
+    """Manuscript value must be a correct rounding of a number in the located cell/line; '<.001' must hold for it."""
+    op, value = split_ineq(value)
     target = to_float(value)
     if target is None:
         return False
+    if op:
+        holds = {"<": lambda x: x < target, "≤": lambda x: x <= target, ">": lambda x: x > target, "≥": lambda x: x >= target}[op]
+        whole = to_float(cell.strip())
+        return any(holds(x) for x in ([whole] if whole is not None else [to_float(t) for t in NUMBER_RE.findall(cell)]) if x is not None)
     tol = 0.5 * 10 ** (-decimals(value)) + 1e-9
     whole = to_float(cell.strip())
     for tok in ([cell.strip()] if whole is not None else NUMBER_RE.findall(cell)):
@@ -488,6 +514,10 @@ def check_numbers(root: Path) -> Report:
         for ln, tok in manuscript_numbers(read_text(mf)):
             if not any(number_matches(tok, v) for v in values):
                 rep.block(f"{mf.relative_to(root)}:{ln} number {tok} has no row in ledgers/NUMBER_PROVENANCE.csv")
+        for ln, line in enumerate(body_without_references(read_text(mf)).splitlines(), 1):
+            for m in CODE_SPAN_NUMBER_RE.finditer(line):
+                rep.block(f"{mf.relative_to(root)}:{ln} bare number {m.group(0)} in a code span escapes provenance; code spans "
+                          f"are for versions/seeds/identifiers with their name inside (e.g. `numpy 2.1`) [E39]")
     return rep
 
 
@@ -574,6 +604,14 @@ def check_citations(root: Path) -> Report:
     for mf in manuscript_files(root):
         text = strip_code(body_without_references(read_text(mf)))
         for ln, line in enumerate(text.splitlines(), 1):
+            loc = f"{mf.relative_to(root)}:{ln}"
+            for m in list(AUTHOR_YEAR_RE.finditer(line)) + list(LATEX_CITE_RE.finditer(line)):
+                rep.block(f"{loc} citation {m.group(0).strip()!r} bypasses verification: cite only as [@citekey] [E1]")
+            for m in NUMERIC_CITE_RE.finditer(line):
+                if len(re.findall(r"\d+", m.group(0))) == 2 and "," in m.group(0):  # [0, 1] may be an interval
+                    rep.warn(f"{loc} {m.group(0)} looks like a numeric citation (cite as [@citekey]) or an interval [E1]")
+                else:
+                    rep.block(f"{loc} numeric citation {m.group(0)} bypasses verification: cite only as [@citekey] [E1]")
             for key in CITE_RE.findall(line):
                 used.setdefault(key, f"{mf.relative_to(root)}:{ln}")
                 lines_by_key.setdefault(key, []).append(line)
@@ -584,6 +622,13 @@ def check_citations(root: Path) -> Report:
             rep.block(f"{loc} cites @{key} without a CLAIM_SUPPORT row (evidence_location + evidence_quote + support_level)")
     for key in sorted(set(bib) - set(used)):
         rep.warn(f"refs.bib entry '{key}' is never cited")
+    d = root / "manuscript"
+    for f in sorted(d.iterdir()) if d.is_dir() else []:
+        if f.suffix.lower() in UNCHECKED_SOURCES:
+            rep.block(f"manuscript/{f.name}: numbers and citations in {f.suffix} files are not checked; keep the paper in "
+                      f"manuscript/*.md and put converted files in submission/ [E39,E1]")
+        elif f.suffix == ".md" and f.name.startswith("_"):
+            rep.warn(f"manuscript/{f.name} is not checked (leading underscore): it must not be submitted")
     cited = [k for k in used if k in bib]
     _check_quotes(root, support, cited, rep)
     _check_preprints(root, lines_by_key, rep)
@@ -784,6 +829,9 @@ def tracked_outputs(root: Path) -> Dict[str, str]:
         for p in (root / d).rglob("*") if (root / d).is_dir() else []:
             if p.is_file() and p.name != ".gitkeep":
                 out[str(p.relative_to(root))] = sha256_file(p)
+    for rel in OUTPUT_FILES:  # the template ships a header-only copy; only rows need a producing run
+        if len([ln for ln in read_text(root / rel).splitlines() if ln.strip()]) > 1:
+            out[rel] = sha256_file(root / rel)
     return out
 
 
@@ -802,7 +850,9 @@ def check_outputs(root: Path) -> Report:
     for path, sha in sorted(tracked_outputs(root).items()):
         rec = manifest.get(path)
         if rec is None or rec["sha"] != sha:
-            rep.block(f"{path} was not produced by a logged `rosctl run` (hand-written, edited or copied) [E31,E49,E50]")
+            how = {"literature/text": "`rosctl fetch-text`", "ledgers/RECOMPUTATION_AUDIT.csv": "a logged re-computation script"}
+            hint = next((v for k, v in how.items() if path.startswith(k)), "a logged `rosctl run`")
+            rep.block(f"{path} was not produced by {hint} (hand-written, edited or copied) [E31,E49,E50]")
             continue
         script = scripts.get(path)
         if script and script in rec["inputs"] and current_inputs.get(script) != rec["inputs"][script]:
@@ -1184,6 +1234,9 @@ def check_reviewer_diversity(root: Path) -> Report:
 
 def stage_s9(root: Path, state: dict) -> Report:
     rep = Report("S9 submission")
+    for f in sorted((root / "manuscript").glob("_*.md")):
+        rep.block(f"manuscript/{f.name} was never checked (leading underscore): merge it into a checked file or remove it "
+                  f"before submission [E39,E1]")
     require_file(root, "submission/COVER_LETTER.md", rep, 150)
     checklist = require_file(root, "submission/SUBMISSION_CHECKLIST.md", rep, 20)
     if re.search(r"^\s*[-*]\s*\[ \]", checklist, re.M):
@@ -1642,12 +1695,14 @@ def cmd_add_ref(args: argparse.Namespace) -> int:
 def cmd_fetch_text(args: argparse.Namespace) -> int:
     root = find_root(Path.cwd())
     rc = 0
+    before, started_ns = tracked_outputs(root), time.time_ns()
     for key in args.keys:
         try:
             print(f"  {rosauto.fetch_text(root, key, rosrefs.http_fetch):<14} literature/text/{key}.txt")
         except (RuntimeError, ValueError) as exc:
             print(f"  FAILED {key}: {exc}")
             rc = 1
+    record_outputs(root, ["rosctl", "fetch-text", *args.keys], before, started_ns)  # a hand-written text cannot pass [E8]
     return rc
 
 

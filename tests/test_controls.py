@@ -399,7 +399,7 @@ class TestReviewAndSubmissionControls(ProjectCase):
         self.write("ledgers/NUMBER_PROVENANCE.csv", "number_id,value,manuscript_location,results_file,locator,script,notes\n"
                    + "".join(f"n{i},{i}.5,R,r.csv,line:{i},a.py,\n" for i in range(1, 8)))
         self.assertEqual(len(rosctl.spot_check_sample(self.proj)), 3)
-        self.assertEqual(len(rosctl.human_controls(self.proj, "S8")), 12)
+        self.assertEqual(len(rosctl.human_controls(self.proj, "S8")), 13)  # H10-H21 + H27
 
 
 if __name__ == "__main__":

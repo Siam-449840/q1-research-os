@@ -15,7 +15,8 @@ route. If the two disagree, the paper is not ready.
    - **Different library:** e.g. `statsmodels` vs `scipy.stats` / `pingouin`; `scikit-learn` metric vs a
      hand-written NumPy metric; R vs Python for mixed models (`lme4` vs `statsmodels` MixedLM).
    - **Different algorithm:** analytic CI vs bootstrap CI; closed form vs numerical.
-3. Run with `rosctl run -- ...`. Write both values to `ledgers/RECOMPUTATION_AUDIT.csv`:
+3. Run with `rosctl run -- ...`. The re-computation script itself writes both values to
+   `ledgers/RECOMPUTATION_AUDIT.csv` (rewrite the file each run; typed rows fail the gate, C65):
    `stat_id, hypothesis_id, description, primary_value, primary_method, independent_value,
    independent_method, abs_tolerance, rel_tolerance, status`.
    Choose tolerances before comparing (e.g. 1e-6 for deterministic, 1e-2 relative for bootstrap).

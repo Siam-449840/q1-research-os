@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.4.0 (2026-11-15)
+
+Forensic audit release: red-team fault injection against a project that passes every gate. Report:
+docs/AUDIT_v1.4_FORENSIC.md. Shortcuts blocked at S7 by the intended check: 2/14 -> 12/14.
+
+- C61: leading-dot statistics (`r = .85`), inequalities (`p < .001`, which must hold for the bound cell) and
+  `n = <year-range>` need provenance; bare numbers in code spans are blocked.
+- C62: citations only as `[@citekey]`; author-year, LaTeX `\cite{}` and numeric `[3]` citations block.
+- C63: source texts must come from `rosctl fetch-text` (recorded in the output manifest), so a hand-written text
+  cannot carry a quote. Existing projects: re-run `rosctl fetch-text <keys>` once.
+- C64: an analysis script that writes `results/` but reads no data or upstream file blocks (typed-in results);
+  simulations annotate `# ros: allow-no-input <reason>`.
+- C65: `RECOMPUTATION_AUDIT.csv` rows must be written by a logged re-computation run.
+- C66: `.tex/.docx` files in `manuscript/` block (unchecked); `_*.md` drafts warn at S7 and block at S9.
+- H27 (human, S8): open the code for every pre-registered analysis and confirm it implements the protocol's
+  definition (pilot lesson: a wrongly defined baseline passed every machine check).
+- tests/test_adversarial.py: permanent red-team suite; the known local trust limit (approval forgery by a
+  process running as the owner) is kept as a documented expected failure.
+- Tests 102 -> 118; targeted mutation testing of the new defences 14/14 killed.
+
 ## 1.3.0 (2026-11-14)
 
 Productivity release: the v1.2 gates required many hand-written ledger rows; helpers now write them.

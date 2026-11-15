@@ -30,9 +30,11 @@ Keywords / Highlights → statements (data, code, AI use, CRediT, competing inte
 After editing text, run `rosctl provenance --apply`: it re-points ledger rows whose line moved (C60).
 
 1. Draft ≤ 800 words at a time in `manuscript/manuscript.md` (or one file per section; files starting
-   with `_` are ignored by checks).
+   with `_` are ignored by checks and must be merged or removed before S9).
 2. While drafting, bind sources: `[@citekey]` or `[Source: results/<file>]`. Copy numbers from results
-   files, never from memory.
+   files, never from memory. Never cite as (Author, Year), `\cite{}` or [1]: those bypass verification (C62).
+   Inequalities are numbers too: bind `p < .001` with `rosctl cite-number "<.001" <file> <locator>` (the
+   cell must satisfy it). Never put a result inside a code span (C61).
 3. After each chunk:
    - add rows to `ledgers/NUMBER_PROVENANCE.csv` (`number_id, value, manuscript_location,
      results_file, locator, script`), value written exactly as in the text (e.g. `0.82`, `12.5%`).

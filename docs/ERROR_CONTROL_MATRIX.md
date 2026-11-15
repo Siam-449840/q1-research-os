@@ -10,16 +10,16 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 
 | # | Category | Error | Controls | Enforcement | Residual |
 |---|---|---|---|---|---|
-| 1 | Literature | Fully fabricated reference | C01, C07 | fail-closed gate | low |
+| 1 | Literature | Fully fabricated reference | C01, C07, C62 | fail-closed gate | low |
 | 2 | Literature | Chimera citation (real DOI, other paper) | C02, C03 | fail-closed gate | low |
 | 3 | Literature | Wrong metadata (year, authors, volume, pages) | C03 | fail-closed gate | medium |
-| 4 | Literature | Real citation that does not support the claim | C08, C07, H05, H10 | fail-closed gate + human gate | high |
+| 4 | Literature | Real citation that does not support the claim | C08, C07, H05, H10, C63 | fail-closed gate + human gate | high |
 | 5 | Literature | Overstating a paper's findings | C11, H11 | fail-closed gate + human gate | high |
 | 6 | Literature | Retracted paper used as valid source | C04 | fail-closed gate | medium |
 | 7 | Literature | Summarising a whole paper from its abstract | C08, H01, H05 | fail-closed gate + human gate | medium |
 | 8 | Literature | Pretending to have read the PDF | C08 | fail-closed gate | low |
 | 9 | Literature | Misreading PDF tables/figures | C39, H10 | fail-closed gate + human gate | medium |
-| 10 | Literature | Fabricated quotations and page numbers | C08 | fail-closed gate | low |
+| 10 | Literature | Fabricated quotations and page numbers | C08, C63 | fail-closed gate | low |
 | 11 | Literature | Secondary citation presented as primary | H05, H10 | mandatory human gate | medium |
 | 12 | Literature | False consensus | C09 | fail-closed gate | medium |
 | 13 | Literature | Outdated information presented as current | C16, H02 | fail-closed gate + human gate | medium |
@@ -35,30 +35,30 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | 23 | Design | Design does not match the question | C24, H06 | fail-closed gate + human gate | medium |
 | 24 | Design | Pseudoreplication | C24, H07 | fail-closed gate + human gate | medium |
 | 25 | Design | Blocking and design-structure errors | C24, H07 | fail-closed gate + human gate | medium |
-| 26 | Design | Fabricated or wrong sample size / power | C24, C39, H08 | fail-closed gate + human gate | medium |
+| 26 | Design | Fabricated or wrong sample size / power | C24, C39, H08, C61 | fail-closed gate + human gate | medium |
 | 27 | Design | Missing controls or confounders | C24, H06 | fail-closed gate + human gate | medium |
 | 28 | Design | Fabricated protocol values | C39, H08 | fail-closed gate + human gate | medium |
 | 29 | Design | Fabricated local facts | C39, H08 | fail-closed gate + human gate | medium |
 | 30 | Design | Assuming equipment/software availability | H04 | mandatory human gate | medium |
-| 31 | Dataset | Fabricating data | C31, C30, C25 | fail-closed gate | low |
+| 31 | Dataset | Fabricating data | C31, C30, C25, C64 | fail-closed gate | low |
 | 32 | Dataset | Non-existent dataset | C25, C26 | fail-closed gate | low |
 | 33 | Dataset | Misread units or codebook | C27 | fail-closed gate | medium |
 | 34 | Dataset | Silent data cleaning | C58, H13 | fail-closed gate + human gate | medium |
 | 35 | Dataset | Data leakage | C36, C24 | fail-closed gate | medium |
 | 36 | Dataset | Assuming representativeness | H11 | mandatory human gate | high |
 | 37 | Dataset | Ignoring license and privacy | C26, C28, H22 | fail-closed gate + human gate | medium |
-| 38 | Statistics | Mental arithmetic instead of code | C39, C29 | fail-closed gate | low |
-| 39 | Statistics | Text numbers differ from code output | C39, C60 | fail-closed gate | low |
+| 38 | Statistics | Mental arithmetic instead of code | C39, C29, C65 | fail-closed gate | low |
+| 39 | Statistics | Text numbers differ from code output | C39, C60, C61, C66 | fail-closed gate | low |
 | 40 | Statistics | Unchecked test assumptions | C24, H09 | fail-closed gate + human gate | medium |
 | 41 | Statistics | p-value misinterpretation | C11 | fail-closed gate | medium |
 | 42 | Statistics | No multiple-comparison correction | C24, C23, H09 | fail-closed gate + human gate | medium |
 | 43 | Statistics | Wrong post-hoc test | C24, H09 | fail-closed gate + human gate | medium |
 | 44 | Statistics | SD/SE/CI confusion | C12, C45 | fail-closed gate | medium |
 | 45 | Statistics | Ignoring interactions | C24, H09 | fail-closed gate + human gate | medium |
-| 46 | Statistics | Inconsistent df, statistic and p-value | C38 | fail-closed gate | low |
+| 46 | Statistics | Inconsistent df, statistic and p-value | C38, C61 | fail-closed gate | low |
 | 47 | Statistics | Training-set R2/accuracy reported as performance | C40, C36 | fail-closed gate | medium |
 | 48 | Statistics | Correlation reported as causation | C24, H11 | fail-closed gate + human gate | high |
-| 49 | ML | Fabricating results when code fails | C29, C30, C55 | fail-closed gate | low |
+| 49 | ML | Fabricating results when code fails | C29, C30, C55, C64 | fail-closed gate | low |
 | 50 | ML | Claiming to have run code | C29, C30 | fail-closed gate | low |
 | 51 | ML | Silent bugs in running code | C37, C29, C35 | fail-closed gate | medium |
 | 52 | ML | Non-existent or deprecated APIs | C29, C55 | fail-closed gate | low |
@@ -73,10 +73,10 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | 61 | Interpretation | Downplayed limitations | C42, H16 | fail-closed gate + human gate | medium |
 | 62 | Interpretation | Recommendations bigger than the data | H11 | mandatory human gate | high |
 | 63 | Interpretation | Changing position under pressure | C23, H21 | fail-closed gate + human gate | medium |
-| 64 | Manuscript | Claims without citation | C09, C07, H10 | fail-closed gate + human gate | high |
+| 64 | Manuscript | Claims without citation | C09, C07, H10, C62, C66 | fail-closed gate + human gate | high |
 | 65 | Manuscript | Internal inconsistency (abstract vs results) | C39 | fail-closed gate | medium |
 | 66 | Manuscript | Figure/table/text mismatch | C45, H12 | fail-closed gate + human gate | medium |
-| 67 | Manuscript | Methods describe work not done | C59, H13, C29 | fail-closed gate + human gate | medium |
+| 67 | Manuscript | Methods describe work not done | C59, H13, H27, C29 | fail-closed gate + human gate | medium |
 | 68 | Manuscript | Fabricated administrative statements | C44, H22 | fail-closed gate + human gate | medium |
 | 69 | Manuscript | Subtle terminology errors | H15 | mandatory human gate | high |
 | 70 | Manuscript | Bangla-English mistranslation of terms | H15 | mandatory human gate | high |
@@ -90,7 +90,7 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | 78 | Agent | Not separating assumption from fact | C44, H11 | fail-closed gate + human gate | high |
 | 79 | Agent | Forgetting earlier decisions in long sessions | C23, C57 | fail-closed gate | medium |
 | 80 | Agent | Silently changing scope or method | C23, C41, C59 | fail-closed gate | low |
-| 81 | Agent | Fabricated or misreported tool output | C19 | fail-closed gate | medium |
+| 81 | Agent | Fabricated or misreported tool output | C19, C64, C65 | fail-closed gate | medium |
 | 82 | Agent | Pretending to follow the rules | C57, C53 | fail-closed gate | low |
 | 83 | Reasoning | Accepting a false premise | C22 | fail-closed gate | medium |
 | 84 | Reasoning | Answer steered by the prompt | C22, H04 | fail-closed gate + human gate | high |
@@ -211,6 +211,12 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | C58 | auto | S3 | `check_cleaning_log` | Processed data require a cleaning log (rows in/out, rule, script) |
 | C59 | auto | S7 | `check_execution` | Every pre-registered analysis (A#) executed by a logged run or recorded as a deviation; false no-deviation claims blocked |
 | C60 | auto | S7 | `check_numbers` | Each provenance row with a file:line location must still find its value on that manuscript line (no stale bindings after edits) |
+| C61 | auto | S7 | `check_numbers` | Leading-dot (r = .85), inequality (p < .001, must hold for the cell), n = <year-range> numbers need provenance; bare numbers in code spans blocked |
+| C62 | auto | S7 | `check_citations` | Author-year, LaTeX and numeric citations blocked: only [@citekey], which is registry- and quote-checked |
+| C63 | auto | S4 | `check_outputs` | Source texts (literature/text) must be written by rosctl fetch-text; a hand-written text cannot carry a quote |
+| C64 | auto | S4 | `check_code` | A script that writes results/ but reads no data or upstream file is blocked (typed-in results) |
+| C65 | auto | S5 | `check_outputs` | RECOMPUTATION_AUDIT rows must be written by a logged re-computation run, never typed |
+| C66 | auto | S7 | `check_citations` | Unchecked manuscript sources (.tex/.docx) blocked; underscore drafts warned at S7 and blocked at S9 |
 | H01 | human | S1 | `rosctl approve S1` | I read the three closest papers in full text myself (not only abstracts or AI summaries). |
 | H02 | human | S1 | `rosctl approve S1` | Novelty rests on evidence, not on missing search hits; the contrary evidence was examined; the method is not an old one renamed. |
 | H03 | human | S1 | `rosctl approve S1` | Regional, grey and non-English sources relevant to the setting (national institutes, theses, reports) were searched. |
@@ -232,6 +238,7 @@ Enforcement: fail-closed gate: 58, fail-closed gate + human gate: 57, mandatory 
 | H19 | human | S8 | `rosctl approve S8` | The AI usage log (models, versions, dates, prompts) is complete enough to reproduce the AI-assisted steps. |
 | H20 | human | S8 | `rosctl approve S8` | At least one reviewer was a human or a different model family; AI output was not verified only by the same AI. |
 | H21 | human | S8 | `rosctl approve S8` | I can explain and defend every analysis and claim myself, without the AI. |
+| H27 | human | S8 | `rosctl approve S8` | For every row of PROTOCOL_EXECUTION I opened the code and confirmed it implements the protocol definition (baseline, split, metric, sample), not only that a number exists. |
 | H22 | human | S9 | `rosctl approve S9` | Ethics approval, consent, funding, acknowledgements, author contributions and data-availability statements are true and documented. |
 | H23 | human | S9 | `rosctl approve S9` | Journal facts (scope, indexing, quartile, APC, AI policy, author guidelines) were verified on official sites; the journal is not predatory. |
 | H24 | human | S9 | `rosctl approve S9` | An institutional similarity check was run; there is no close paraphrase; third-party figures/tables have permission. |
